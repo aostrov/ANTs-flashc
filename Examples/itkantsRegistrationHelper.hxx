@@ -532,8 +532,7 @@ template <class TComputeType, unsigned VImageDimension>
 void
 RegistrationHelper<TComputeType, VImageDimension>
 ::AddFLASHTransform(RealType GradientStep, RealType regTermWeight, RealType laplaceWeight,
-                    RealType identityWeight, RealType operatorPower,
-                    unsigned int timeStep, unsigned int truncX, unsigned int truncY, unsigned int truncZ)
+                    RealType identityWeight, RealType operatorPower, unsigned int timeStep)
 {
   // CURRENTLY THE CODE FROM AddSyNTransform (except for parameter specs above)
   // TransformMethod init;
