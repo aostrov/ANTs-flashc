@@ -905,23 +905,40 @@ DoRegistration(typename ParserType::Pointer & parser)
         }
         break;
       // FLASH edit
-      // TODO: need to define RegistrationHelperType::FLASH type
       case RegistrationHelperType::FLASH:
         {
-        // CURRENTLY CODE FROM case:RegistrationHelperType::SyN
-        // float varianceForUpdateField = 3.0;
-        // if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
-        //   {
-        //   varianceForUpdateField =
-        //     parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter( 1 ) );
-        //   }
-        // float varianceForTotalField = 0.0;
-        // if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 2 )
-        //   {
-        //   varianceForTotalField = parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter(
-        //                                                     2 ) );
-        //   }
-        // regHelper->AddSyNTransform( learningRate, varianceForUpdateField, varianceForTotalField );
+        float regTermWeight = 0.03;
+        if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
+          {
+          regTermWeight =
+            parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter( 1 ) );
+          }
+        float laplaceWeight = 3.0;
+        if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
+          {
+          laplaceWeight =
+            parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter( 2 ) );
+          }
+        float identityWeight = 1.0;
+        if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
+          {
+          identityWeight =
+            parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter( 3 ) );
+          }
+        float operatorPower = 6.0;
+        if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
+          {
+          operatorPower =
+            parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter( 4 ) );
+          }
+        unsigned int timeSteps = 10;
+        if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
+          {
+          timeSteps =
+            parser->Convert<unsigned int>( transformOption->GetFunction( currentStage )->GetParameter( 5 ) );
+          }
+        regHelper->AddFLASHTransform( learningRate, regTermWeight, laplaceWeight,
+                                      identityWeight, operatorPower, timeSteps );
         }
         break;
       // END: FLASH edit

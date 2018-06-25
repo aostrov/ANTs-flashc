@@ -534,14 +534,16 @@ RegistrationHelper<TComputeType, VImageDimension>
 ::AddFLASHTransform(RealType GradientStep, RealType regTermWeight, RealType laplaceWeight,
                     RealType identityWeight, RealType operatorPower, unsigned int timeStep)
 {
-  // CURRENTLY THE CODE FROM AddSyNTransform (except for parameter specs above)
-  // TransformMethod init;
+  TransformMethod init;
 
-  // init.m_XfrmMethod = SyN;
-  // init.m_GradientStep = GradientStep;
-  // init.m_UpdateFieldVarianceInVarianceSpace = UpdateFieldVarianceInVarianceSpace;
-  // init.m_TotalFieldVarianceInVarianceSpace = TotalFieldVarianceInVarianceSpace;
-  // this->m_TransformMethods.push_back( init );
+  init.m_XfrmMethod = FLASH;
+  init.m_GradientStep = GradientStep;
+  init.m_NumberOfTimeIndices = timeStep;
+  init.m_regTermWeight = regTermWeight;
+  init.m_laplaceWeight = laplaceWeight;
+  init.m_identityWeight = identityWeight;
+  init.m_operatorPower = operatorPower;
+  this->m_TransformMethods.push_back( init );
 }
 // END: FLASH edit
 
@@ -3292,6 +3294,9 @@ RegistrationHelper<TComputeType, VImageDimension>
       // FLASH edit
       case FLASH:
         {
+        /* This method is like the last join between the actual algorithm, implemented in itk, or perhaps temporarily just
+        as it's own set of independent files included in my ants fork, and the interface. I should edit this after I've
+        built a version of the FLASH algorithm that ANTS can connect to */
         // CURRENTLY COPIED CODE FROM case SyN
         // if( stageMetricList[0].m_MetricType == IGDM )
         //   {

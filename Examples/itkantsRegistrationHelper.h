@@ -438,7 +438,7 @@ public:
     // TimeVaryingVelocityField
     RealType       m_UpdateFieldTimeSigma;
     RealType       m_TotalFieldTimeSigma;
-    unsigned int   m_NumberOfTimeIndices;
+    unsigned int   m_NumberOfTimeIndices; // also FLASH
     // TimeVaryingBSplineVelocityField
     std::vector<unsigned int> m_VelocityFieldMeshSize;
     unsigned int              m_NumberOfTimePointSamples;
@@ -446,6 +446,13 @@ public:
     RealType m_VelocityFieldVarianceInVarianceSpace;
     // BSplineExponential
     std::vector<unsigned int> m_VelocityFieldMeshSizeAtBaseLevel;
+    // FLASH edit
+    // FLASH
+    RealType      m_regTermWeight;
+    RealType      m_laplaceWeight;
+    RealType      m_identityWeight;
+    RealType      m_operatorPower;
+    // END: FLASH edit
   };
 
   typedef std::deque<TransformMethod> TransformMethodListType;
