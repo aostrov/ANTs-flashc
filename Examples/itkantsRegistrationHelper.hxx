@@ -251,6 +251,12 @@ RegistrationHelper<TComputeType, VImageDimension>
     {
     return BSplineExponential;
     }
+  // FLASH edit
+  if( str == "flash" )
+    {
+    return FLASH;
+    }
+  // END: FLASH edit
   return UnknownXfrm;
 }
 
@@ -520,6 +526,25 @@ RegistrationHelper<TComputeType, VImageDimension>
 
   this->m_TransformMethods.push_back( init );
 }
+
+// FLASH edit
+template <class TComputeType, unsigned VImageDimension>
+void
+RegistrationHelper<TComputeType, VImageDimension>
+::AddFLASHTransform(RealType GradientStep, RealType regTermWeight, RealType laplaceWeight,
+                    RealType identityWeight, RealType operatorPower,
+                    unsigned int timeStep, unsigned int truncX, unsigned int truncY, unsigned int truncZ)
+{
+  // CURRENTLY THE CODE FROM AddSyNTransform (except for parameter specs above)
+  // TransformMethod init;
+
+  // init.m_XfrmMethod = SyN;
+  // init.m_GradientStep = GradientStep;
+  // init.m_UpdateFieldVarianceInVarianceSpace = UpdateFieldVarianceInVarianceSpace;
+  // init.m_TotalFieldVarianceInVarianceSpace = TotalFieldVarianceInVarianceSpace;
+  // this->m_TransformMethods.push_back( init );
+}
+// END: FLASH edit
 
 template <class TComputeType, unsigned VImageDimension>
 void
@@ -3265,6 +3290,227 @@ RegistrationHelper<TComputeType, VImageDimension>
         this->m_AllPreviousTransformsAreLinear = false;
         }
         break;
+      // FLASH edit
+      case FLASH:
+        {
+        // CURRENTLY COPIED CODE FROM case SyN
+        // if( stageMetricList[0].m_MetricType == IGDM )
+        //   {
+        //   this->Logger() << "Intensity point set metric is not implemented yet for the specified transform." << std::endl;
+        //   return EXIT_FAILURE;
+        //   }
+
+        // typedef itk::Vector<RealType, VImageDimension> VectorType;
+        // VectorType zeroVector( 0.0 );
+        // //typedef itk::Image<VectorType, VImageDimension> DisplacementFieldType;
+
+        // typename DisplacementFieldType::Pointer displacementField =
+        //   AllocImage<DisplacementFieldType>( virtualDomainImage, zeroVector );
+        // typename DisplacementFieldType::Pointer inverseDisplacementField =
+        //   AllocImage<DisplacementFieldType>( virtualDomainImage, zeroVector );
+
+        // typedef itk::SyNImageRegistrationMethod<ImageType, ImageType,
+        //   DisplacementFieldTransformType, ImageType, LabeledPointSetType> DisplacementFieldRegistrationType;
+        // typename DisplacementFieldRegistrationType::Pointer displacementFieldRegistration =
+        //   DisplacementFieldRegistrationType::New();
+
+        // if( this->m_RestrictDeformationOptimizerWeights.size() > currentStageNumber )
+        //   {
+        //   if( this->m_RestrictDeformationOptimizerWeights[currentStageNumber].size() == VImageDimension )
+        //     {
+        //     typename DisplacementFieldRegistrationType::OptimizerWeightsType optimizerWeights( VImageDimension );
+        //     for( unsigned int d = 0; d < VImageDimension; d++ )
+        //       {
+        //       optimizerWeights[d] = this->m_RestrictDeformationOptimizerWeights[currentStageNumber][d];
+        //       }
+        //     displacementFieldRegistration->SetOptimizerWeights( optimizerWeights );
+        //     }
+        //   }
+
+        // typename DisplacementFieldTransformType::Pointer outputDisplacementFieldTransform = displacementFieldRegistration->GetModifiableTransform();
+
+        // // Create the transform adaptors
+
+        // typedef itk::DisplacementFieldTransformParametersAdaptor<DisplacementFieldTransformType>
+        //   DisplacementFieldTransformAdaptorType;
+        // typename DisplacementFieldRegistrationType::TransformParametersAdaptorsContainerType adaptors;
+        // // Create the transform adaptors
+        // // For the gaussian displacement field, the specified variances are in image spacing terms
+        // // and, in normal practice, we typically don't change these values at each level.  However,
+        // // if the user wishes to add that option, they can use the class
+        // // GaussianSmoothingOnUpdateDisplacementFieldTransformAdaptor
+        // for( unsigned int level = 0; level < numberOfLevels; level++ )
+        //   {
+        //   typename itk::ImageBase<VImageDimension>::Pointer shrunkSpace=
+        //              this->GetShrinkImageOutputInformation(
+        //                   virtualDomainImage.GetPointer(),
+        //                   shrinkFactorsPerDimensionForAllLevels[level]  );
+
+        //   typename DisplacementFieldTransformAdaptorType::Pointer fieldTransformAdaptor =
+        //     DisplacementFieldTransformAdaptorType::New();
+        //   fieldTransformAdaptor->SetRequiredSpacing( shrunkSpace->GetSpacing() );
+        //   fieldTransformAdaptor->SetRequiredSize( shrunkSpace->GetLargestPossibleRegion().GetSize() );
+        //   fieldTransformAdaptor->SetRequiredDirection( shrunkSpace->GetDirection() );
+        //   fieldTransformAdaptor->SetRequiredOrigin( shrunkSpace->GetOrigin() );
+        //   fieldTransformAdaptor->SetTransform( outputDisplacementFieldTransform );
+
+        //   adaptors.push_back( fieldTransformAdaptor.GetPointer() );
+        //   }
+
+        // // Extract parameters
+        // typename DisplacementFieldRegistrationType::NumberOfIterationsArrayType numberOfIterationsPerLevel;
+        // numberOfIterationsPerLevel.SetSize( numberOfLevels );
+        // for( unsigned int d = 0; d < numberOfLevels; d++ )
+        //   {
+        //   numberOfIterationsPerLevel[d] = currentStageIterations[d];
+        //   }
+
+        // const RealType varianceForUpdateField =
+        //   this->m_TransformMethods[currentStageNumber].m_UpdateFieldVarianceInVarianceSpace;
+        // const RealType varianceForTotalField =
+        //   this->m_TransformMethods[currentStageNumber].m_TotalFieldVarianceInVarianceSpace;
+        // for( unsigned int n = 0; n < stageMetricList.size(); n++ )
+        //   {
+        //   if( !this->IsPointSetMetric( stageMetricList[n].m_MetricType ) )
+        //     {
+        //     displacementFieldRegistration->SetFixedImage( n, preprocessedFixedImagesPerStage[n] );
+        //     displacementFieldRegistration->SetMovingImage( n, preprocessedMovingImagesPerStage[n] );
+        //     }
+        //   else
+        //     {
+        //     displacementFieldRegistration->SetFixedPointSet( n, stageMetricList[n].m_FixedLabeledPointSet.GetPointer() );
+        //     displacementFieldRegistration->SetMovingPointSet( n, stageMetricList[n].m_MovingLabeledPointSet.GetPointer() );
+        //     }
+        //   }
+        // if( useMultiMetric )
+        //   {
+        //   displacementFieldRegistration->SetMetric( multiMetric );
+        //   }
+        // else
+        //   {
+        //   displacementFieldRegistration->SetMetric( singleMetric );
+        //   }
+
+        // bool synIsInitialized = false;
+        // if( this->m_InitializeTransformsPerStage )
+        //   {
+        //   if( this->m_RegistrationState.IsNotNull() )
+        //     {
+        //     const unsigned int numOfTransforms = this->m_RegistrationState->GetNumberOfTransforms();
+        //     typename TransformType::Pointer oneToEndTransform = this->m_RegistrationState->GetNthTransform( numOfTransforms-2 );
+        //     typename TransformType::Pointer endTransform = this->m_RegistrationState->GetNthTransform( numOfTransforms-1 );
+
+        //     typename DisplacementFieldTransformType::Pointer fixedToMiddle =
+        //       dynamic_cast<DisplacementFieldTransformType *>( oneToEndTransform.GetPointer() );
+        //     typename DisplacementFieldTransformType::Pointer movingToMiddle =
+        //       dynamic_cast<DisplacementFieldTransformType *>( endTransform.GetPointer() );
+
+        //     if( fixedToMiddle.IsNotNull() && movingToMiddle.IsNotNull()
+        //        && fixedToMiddle->GetInverseDisplacementField() && movingToMiddle->GetInverseDisplacementField() )
+        //       {
+        //       this->Logger() << "Current SyN transform is directly initialized from the previous stage." << std::endl;
+        //       displacementFieldRegistration->SetFixedToMiddleTransform( fixedToMiddle );
+        //       displacementFieldRegistration->SetMovingToMiddleTransform( movingToMiddle );
+
+        //       this->m_RegistrationState->RemoveTransform();
+        //       this->m_RegistrationState->RemoveTransform();
+        //       }
+
+        //     // If there are components other than SyN state
+        //     if( this->m_RegistrationState->GetNumberOfTransforms() > 0 )
+        //       {
+        //       displacementFieldRegistration->SetMovingInitialTransform( this->m_RegistrationState );
+        //       }
+        //     synIsInitialized = true;
+        //     this->m_CompositeTransform->RemoveTransform();
+        //     }
+        //   }
+
+        // if( this->m_CompositeTransform->GetNumberOfTransforms() > 0 && !synIsInitialized )
+        //   {
+        //   displacementFieldRegistration->SetMovingInitialTransform( this->m_CompositeTransform );
+        //   }
+
+        // if( this->m_FixedInitialTransform->GetNumberOfTransforms() > 0 )
+        //   {
+        //   displacementFieldRegistration->SetFixedInitialTransform( this->m_FixedInitialTransform );
+        //   }
+        // displacementFieldRegistration->SetDownsampleImagesForMetricDerivatives( true );
+        // displacementFieldRegistration->SetAverageMidPointGradients( false );
+
+        // displacementFieldRegistration->SetNumberOfLevels( numberOfLevels );
+
+        // for( unsigned int level = 0; level < numberOfLevels; ++level )
+        //   {
+        //   displacementFieldRegistration->SetShrinkFactorsPerDimension( level, shrinkFactorsPerDimensionForAllLevels[level] );
+        //   }
+        // displacementFieldRegistration->SetSmoothingSigmasPerLevel( smoothingSigmasPerLevel );
+        // displacementFieldRegistration->SetSmoothingSigmasAreSpecifiedInPhysicalUnits(
+        //   this->m_SmoothingSigmasAreInPhysicalUnits[currentStageNumber] );
+
+        // displacementFieldRegistration->SetLearningRate( learningRate );
+        // displacementFieldRegistration->SetConvergenceThreshold( convergenceThreshold );
+        // displacementFieldRegistration->SetConvergenceWindowSize( convergenceWindowSize );
+        // displacementFieldRegistration->SetNumberOfIterationsPerLevel( numberOfIterationsPerLevel );
+        // displacementFieldRegistration->SetTransformParametersAdaptorsPerLevel( adaptors );
+        // displacementFieldRegistration->SetGaussianSmoothingVarianceForTheUpdateField( varianceForUpdateField );
+        // displacementFieldRegistration->SetGaussianSmoothingVarianceForTheTotalField( varianceForTotalField );
+        // outputDisplacementFieldTransform->SetDisplacementField( displacementField );
+        // outputDisplacementFieldTransform->SetInverseDisplacementField( inverseDisplacementField );
+
+        // // For all Velocity field and Displacement field registration types that are not using generic
+        // // itkImageRegistrationMethodv4 we use following type of observer:
+        // typedef antsDisplacementAndVelocityFieldRegistrationCommandIterationUpdate<DisplacementFieldRegistrationType>
+        //   DisplacementFieldCommandType2;
+        // typename DisplacementFieldCommandType2::Pointer displacementFieldRegistrationObserver2 =
+        //   DisplacementFieldCommandType2::New();
+        // displacementFieldRegistrationObserver2->SetLogStream(*this->m_LogStream);
+        // displacementFieldRegistrationObserver2->SetNumberOfIterations( currentStageIterations );
+        // displacementFieldRegistrationObserver2->SetOrigFixedImage( this->m_Metrics[0].m_FixedImage );
+        // displacementFieldRegistrationObserver2->SetOrigMovingImage( this->m_Metrics[0].m_MovingImage );
+        // if( this->m_PrintSimilarityMeasureInterval != 0 )
+        //   {
+        //   displacementFieldRegistrationObserver2->SetComputeFullScaleCCInterval( this->m_PrintSimilarityMeasureInterval );
+        //   }
+        // if( this->m_WriteIntervalVolumes != 0 )
+        //   {
+        //   displacementFieldRegistrationObserver2->SetWriteInterationsOutputsInIntervals( this->m_WriteIntervalVolumes );
+        //   displacementFieldRegistrationObserver2->SetCurrentStageNumber( currentStageNumber );
+        //   }
+        // displacementFieldRegistration->AddObserver( itk::InitializeEvent(), displacementFieldRegistrationObserver2 );
+        // displacementFieldRegistration->AddObserver( itk::IterationEvent(), displacementFieldRegistrationObserver2 );
+
+        // try
+        //   {
+        //   this->Logger() << std::endl << "*** Running SyN registration (varianceForUpdateField = "
+        //                  << varianceForUpdateField << ", varianceForTotalField = " << varianceForTotalField << ") ***"
+        //                  << std::endl << std::endl;
+        //   displacementFieldRegistrationObserver2->Execute( displacementFieldRegistration, itk::StartEvent() );
+        //   displacementFieldRegistration->Update();
+        //   }
+        // catch( itk::ExceptionObject & e )
+        //   {
+        //   this->Logger() << "Exception caught: " << e << std::endl;
+        //   return EXIT_FAILURE;
+        //   }
+
+        // // Add calculated internal transforms to the registration state
+        // if( this->m_RegistrationState.IsNull() )
+        //   {
+        //   this->m_RegistrationState = CompositeTransformType::New();
+        //   }
+        // this->m_RegistrationState->ClearTransformQueue();
+        // this->m_RegistrationState->AddTransform( this->m_CompositeTransform );
+        // this->m_RegistrationState->AddTransform( displacementFieldRegistration->GetModifiableFixedToMiddleTransform() );
+        // this->m_RegistrationState->AddTransform( displacementFieldRegistration->GetModifiableMovingToMiddleTransform() );
+        // this->m_RegistrationState->FlattenTransformQueue();
+
+        // // Add calculated transform to the composite transform
+        // this->m_CompositeTransform->AddTransform( outputDisplacementFieldTransform );
+        // this->m_AllPreviousTransformsAreLinear = false;
+        // }
+        break;
+      // END: FLASH edit
       default:
         this->Logger() << "ERROR:  Unrecognized transform option - " << whichTransform << std::endl;
         return EXIT_FAILURE;

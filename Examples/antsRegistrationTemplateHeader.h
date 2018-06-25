@@ -904,6 +904,27 @@ DoRegistration(typename ParserType::Pointer & parser)
                                                    numberOfIntegrationSteps, splineOrder );
         }
         break;
+      // FLASH edit
+      // TODO: need to define RegistrationHelperType::FLASH type
+      case RegistrationHelperType::FLASH:
+        {
+        // CURRENTLY CODE FROM case:RegistrationHelperType::SyN
+        // float varianceForUpdateField = 3.0;
+        // if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
+        //   {
+        //   varianceForUpdateField =
+        //     parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter( 1 ) );
+        //   }
+        // float varianceForTotalField = 0.0;
+        // if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 2 )
+        //   {
+        //   varianceForTotalField = parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter(
+        //                                                     2 ) );
+        //   }
+        // regHelper->AddSyNTransform( learningRate, varianceForUpdateField, varianceForTotalField );
+        }
+        break;
+      // END: FLASH edit
       default:
         {
         if( verbose )

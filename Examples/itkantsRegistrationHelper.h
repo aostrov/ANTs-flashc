@@ -332,7 +332,8 @@ public:
     BSplineSyN = 11,
     Exponential = 12,
     BSplineExponential = 13,
-    UnknownXfrm = 14
+    FLASH = 14        // FLASH edit
+    UnknownXfrm = 15  // END: FLASH edit
     };
 
   class TransformMethod
@@ -411,6 +412,12 @@ public:
           {
           return std::string( "BSplineExponential" );
           }
+        // FLASH edit
+        case FLASH:
+          {
+          return std::string( "FLASH" );
+          }
+        // END: FLASH edit
         case UnknownXfrm: return std::string( "UnknownXfrm" );
         }
       return std::string( "Impossible" );
@@ -611,6 +618,15 @@ public:
   void AddBSplineExponentialTransform( RealType GradientStep, std::vector<unsigned int> & UpdateFieldMeshSizeAtBaseLevel,
                                        std::vector<unsigned int> & VelocityFieldMeshSizeAtBaseLevel,
                                        unsigned int NumberOfIntegrationSteps, unsigned int SplineOrder );
+
+  // FLASH edit
+  /**
+   * add a FLASH transform
+   */
+  void AddFLASHTransform(RealType GradientStep, RealType regTermWeight, RealType laplaceWeight,
+                         RealType identityWeight, RealType operatorPower,
+                         unsigned int timeStep, unsigned int truncX, unsigned int truncY, unsigned int truncZ);
+  // END: FLASH edit
 
   /**
    * Add the collected iterations list
