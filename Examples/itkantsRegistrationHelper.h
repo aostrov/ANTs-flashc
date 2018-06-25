@@ -332,7 +332,7 @@ public:
     BSplineSyN = 11,
     Exponential = 12,
     BSplineExponential = 13,
-    FLASH = 14        // FLASH edit
+    FLASH = 14,        // FLASH edit
     UnknownXfrm = 15  // END: FLASH edit
     };
 
@@ -624,8 +624,7 @@ public:
    * add a FLASH transform
    */
   void AddFLASHTransform(RealType GradientStep, RealType regTermWeight, RealType laplaceWeight,
-                         RealType identityWeight, RealType operatorPower,
-                         unsigned int timeStep, unsigned int truncX, unsigned int truncY, unsigned int truncZ);
+                         RealType identityWeight, RealType operatorPower, unsigned int timeStep);
   // END: FLASH edit
 
   /**

@@ -15,8 +15,7 @@ RegTypeToFileName(const std::string & type, bool & writeInverse, bool & writeVel
       str == "timevaryingvelocityfield" ||
       str == "tvf"  ||
       str == "exponential" ||
-      str == "bsplineexponential" ||
-      str == "flash" )  // FLASH edit; // END: FLASH edit
+      str == "bsplineexponential")
     {
     writeInverse = true;
     }
@@ -93,8 +92,7 @@ RegTypeToFileName(const std::string & type, bool & writeInverse, bool & writeVel
            str == "bsplinesyn" ||
            str == "exp" ||
            str == "exponential" ||
-           str == "bsplineexponential" ||
-           str == "flash" )  // FLASH edit; // END: FLASH edit
+           str == "bsplineexponential")
     {
     if(minc)
       return "_NL.xfm";
@@ -104,7 +102,8 @@ RegTypeToFileName(const std::string & type, bool & writeInverse, bool & writeVel
   else if( str == "timevaryingvelocityfield" ||
            str == "tvf" ||
            str == "timevaryingbsplinevelocityfield" ||
-           str == "tvdmffd"  )
+           str == "tvdmffd" ||
+           str == "flash"  )  // FLASH edit; // END: FLASH edit
     {
     if(minc)
       return "_Warp.mnc";

@@ -3508,7 +3508,7 @@ RegistrationHelper<TComputeType, VImageDimension>
         // // Add calculated transform to the composite transform
         // this->m_CompositeTransform->AddTransform( outputDisplacementFieldTransform );
         // this->m_AllPreviousTransformsAreLinear = false;
-        // }
+        }
         break;
       // END: FLASH edit
       default:
