@@ -3297,221 +3297,248 @@ RegistrationHelper<TComputeType, VImageDimension>
         /* This method is like the last join between the actual algorithm, implemented in itk, or perhaps temporarily just
         as it's own set of independent files included in my ants fork, and the interface. I should edit this after I've
         built a version of the FLASH algorithm that ANTS can connect to */
-        // CURRENTLY COPIED CODE FROM case SyN
-        // if( stageMetricList[0].m_MetricType == IGDM )
-        //   {
-        //   this->Logger() << "Intensity point set metric is not implemented yet for the specified transform." << std::endl;
-        //   return EXIT_FAILURE;
-        //   }
+        if( stageMetricList[0].m_MetricType == IGDM )
+          {
+          this->Logger() << "Intensity point set metric is not implemented yet for the specified transform." << std::endl;
+          return EXIT_FAILURE;
+          }
 
-        // typedef itk::Vector<RealType, VImageDimension> VectorType;
-        // VectorType zeroVector( 0.0 );
-        // //typedef itk::Image<VectorType, VImageDimension> DisplacementFieldType;
+        typedef itk::Vector<RealType, VImageDimension> VectorType;
+        VectorType zeroVector( 0.0 );
+        //typedef itk::Image<VectorType, VImageDimension> DisplacementFieldType;
 
-        // typename DisplacementFieldType::Pointer displacementField =
-        //   AllocImage<DisplacementFieldType>( virtualDomainImage, zeroVector );
-        // typename DisplacementFieldType::Pointer inverseDisplacementField =
-        //   AllocImage<DisplacementFieldType>( virtualDomainImage, zeroVector );
+        typename DisplacementFieldType::Pointer displacementField =  // virtualDomainImage: represents domain in which metric is evaluated, i.e. spatial resolution of transform also
+          AllocImage<DisplacementFieldType>( virtualDomainImage, zeroVector );
+        typename DisplacementFieldType::Pointer inverseDisplacementField =
+          AllocImage<DisplacementFieldType>( virtualDomainImage, zeroVector );
+        // TODO: define other FLASH required objects
 
-        // typedef itk::SyNImageRegistrationMethod<ImageType, ImageType,
-        //   DisplacementFieldTransformType, ImageType, LabeledPointSetType> DisplacementFieldRegistrationType;
-        // typename DisplacementFieldRegistrationType::Pointer displacementFieldRegistration =
-        //   DisplacementFieldRegistrationType::New();
+        typedef itk::/*TODO: FLASH registration type!*/<ImageType, ImageType,
+          DisplacementFieldTransformType, ImageType, LabeledPointSetType> DisplacementFieldRegistrationType; // TODO: may need to be "velocity" field registration type
+        typename DisplacementFieldRegistrationType::Pointer displacementFieldRegistration =
+          DisplacementFieldRegistrationType::New();  // TODO: registration method must have a constructor; duh
 
-        // if( this->m_RestrictDeformationOptimizerWeights.size() > currentStageNumber )
-        //   {
-        //   if( this->m_RestrictDeformationOptimizerWeights[currentStageNumber].size() == VImageDimension )
-        //     {
-        //     typename DisplacementFieldRegistrationType::OptimizerWeightsType optimizerWeights( VImageDimension );
-        //     for( unsigned int d = 0; d < VImageDimension; d++ )
-        //       {
-        //       optimizerWeights[d] = this->m_RestrictDeformationOptimizerWeights[currentStageNumber][d];
-        //       }
-        //     displacementFieldRegistration->SetOptimizerWeights( optimizerWeights );
-        //     }
-        //   }
+        // TODO: this option restricts optimization to a subset of the spatial dimensions (see restrict-deformation option in antsRegistration --help)
+        if( this->m_RestrictDeformationOptimizerWeights.size() > currentStageNumber )
+          {
+          if( this->m_RestrictDeformationOptimizerWeights[currentStageNumber].size() == VImageDimension )
+            {
+            typename DisplacementFieldRegistrationType::OptimizerWeightsType optimizerWeights( VImageDimension );
+            for( unsigned int d = 0; d < VImageDimension; d++ )
+              {
+              optimizerWeights[d] = this->m_RestrictDeformationOptimizerWeights[currentStageNumber][d];
+              }
+            displacementFieldRegistration->SetOptimizerWeights( optimizerWeights );
+            }
+          }
 
-        // typename DisplacementFieldTransformType::Pointer outputDisplacementFieldTransform = displacementFieldRegistration->GetModifiableTransform();
+        // TODO: something to do with the final output?
+        typename DisplacementFieldTransformType::Pointer outputDisplacementFieldTransform = displacementFieldRegistration->GetModifiableTransform();
 
         // // Create the transform adaptors
 
-        // typedef itk::DisplacementFieldTransformParametersAdaptor<DisplacementFieldTransformType>
-        //   DisplacementFieldTransformAdaptorType;
-        // typename DisplacementFieldRegistrationType::TransformParametersAdaptorsContainerType adaptors;
-        // // Create the transform adaptors
-        // // For the gaussian displacement field, the specified variances are in image spacing terms
-        // // and, in normal practice, we typically don't change these values at each level.  However,
-        // // if the user wishes to add that option, they can use the class
-        // // GaussianSmoothingOnUpdateDisplacementFieldTransformAdaptor
-        // for( unsigned int level = 0; level < numberOfLevels; level++ )
-        //   {
-        //   typename itk::ImageBase<VImageDimension>::Pointer shrunkSpace=
-        //              this->GetShrinkImageOutputInformation(
-        //                   virtualDomainImage.GetPointer(),
-        //                   shrinkFactorsPerDimensionForAllLevels[level]  );
+        // TODO: typedef and a container for adaptors (things that execute subroutines like smoothing?)?
+        typedef itk::DisplacementFieldTransformParametersAdaptor<DisplacementFieldTransformType>
+          DisplacementFieldTransformAdaptorType;
+        typename DisplacementFieldRegistrationType::TransformParametersAdaptorsContainerType adaptors;
+        // Create the transform adaptors
+        // For the gaussian displacement field, the specified variances are in image spacing terms
+        // and, in normal practice, we typically don't change these values at each level.  However,
+        // if the user wishes to add that option, they can use the class
+        // GaussianSmoothingOnUpdateDisplacementFieldTransformAdaptor
 
-        //   typename DisplacementFieldTransformAdaptorType::Pointer fieldTransformAdaptor =
-        //     DisplacementFieldTransformAdaptorType::New();
-        //   fieldTransformAdaptor->SetRequiredSpacing( shrunkSpace->GetSpacing() );
-        //   fieldTransformAdaptor->SetRequiredSize( shrunkSpace->GetLargestPossibleRegion().GetSize() );
-        //   fieldTransformAdaptor->SetRequiredDirection( shrunkSpace->GetDirection() );
-        //   fieldTransformAdaptor->SetRequiredOrigin( shrunkSpace->GetOrigin() );
-        //   fieldTransformAdaptor->SetTransform( outputDisplacementFieldTransform );
+        // TODO: this must be converted to shrink factors on the fourier coefficient image
+        // linear interpolation in the spatial domain corresponds to multiplication by a sinc function in freq domain
+        // https://ccrma.stanford.edu/~jos/pasp/Linear_Interpolation_Frequency_Response.html (read more references)
+        for( unsigned int level = 0; level < numberOfLevels; level++ )
+          {
+          typename itk::ImageBase<VImageDimension>::Pointer shrunkSpace=
+                     this->GetShrinkImageOutputInformation(
+                          virtualDomainImage.GetPointer(),
+                          shrinkFactorsPerDimensionForAllLevels[level]  );
 
-        //   adaptors.push_back( fieldTransformAdaptor.GetPointer() );
-        //   }
+          // TODO: puts linear interpolation adaptors in place
+          typename DisplacementFieldTransformAdaptorType::Pointer fieldTransformAdaptor =
+            DisplacementFieldTransformAdaptorType::New();
+          fieldTransformAdaptor->SetRequiredSpacing( shrunkSpace->GetSpacing() );
+          fieldTransformAdaptor->SetRequiredSize( shrunkSpace->GetLargestPossibleRegion().GetSize() );
+          fieldTransformAdaptor->SetRequiredDirection( shrunkSpace->GetDirection() );
+          fieldTransformAdaptor->SetRequiredOrigin( shrunkSpace->GetOrigin() );
+          fieldTransformAdaptor->SetTransform( outputDisplacementFieldTransform );
 
-        // // Extract parameters
-        // typename DisplacementFieldRegistrationType::NumberOfIterationsArrayType numberOfIterationsPerLevel;
-        // numberOfIterationsPerLevel.SetSize( numberOfLevels );
-        // for( unsigned int d = 0; d < numberOfLevels; d++ )
-        //   {
-        //   numberOfIterationsPerLevel[d] = currentStageIterations[d];
-        //   }
+          adaptors.push_back( fieldTransformAdaptor.GetPointer() );
+          }
 
-        // const RealType varianceForUpdateField =
-        //   this->m_TransformMethods[currentStageNumber].m_UpdateFieldVarianceInVarianceSpace;
-        // const RealType varianceForTotalField =
-        //   this->m_TransformMethods[currentStageNumber].m_TotalFieldVarianceInVarianceSpace;
-        // for( unsigned int n = 0; n < stageMetricList.size(); n++ )
-        //   {
-        //   if( !this->IsPointSetMetric( stageMetricList[n].m_MetricType ) )
-        //     {
-        //     displacementFieldRegistration->SetFixedImage( n, preprocessedFixedImagesPerStage[n] );
-        //     displacementFieldRegistration->SetMovingImage( n, preprocessedMovingImagesPerStage[n] );
-        //     }
-        //   else
-        //     {
-        //     displacementFieldRegistration->SetFixedPointSet( n, stageMetricList[n].m_FixedLabeledPointSet.GetPointer() );
-        //     displacementFieldRegistration->SetMovingPointSet( n, stageMetricList[n].m_MovingLabeledPointSet.GetPointer() );
-        //     }
-        //   }
-        // if( useMultiMetric )
-        //   {
-        //   displacementFieldRegistration->SetMetric( multiMetric );
-        //   }
-        // else
-        //   {
-        //   displacementFieldRegistration->SetMetric( singleMetric );
-        //   }
+        // Extract parameters
+        // TODO: iterations part should be fine as is
+        typename DisplacementFieldRegistrationType::NumberOfIterationsArrayType numberOfIterationsPerLevel;
+        numberOfIterationsPerLevel.SetSize( numberOfLevels );
+        for( unsigned int d = 0; d < numberOfLevels; d++ )
+          {
+          numberOfIterationsPerLevel[d] = currentStageIterations[d];
+          }
 
-        // bool synIsInitialized = false;
-        // if( this->m_InitializeTransformsPerStage )
-        //   {
-        //   if( this->m_RegistrationState.IsNotNull() )
-        //     {
-        //     const unsigned int numOfTransforms = this->m_RegistrationState->GetNumberOfTransforms();
-        //     typename TransformType::Pointer oneToEndTransform = this->m_RegistrationState->GetNthTransform( numOfTransforms-2 );
-        //     typename TransformType::Pointer endTransform = this->m_RegistrationState->GetNthTransform( numOfTransforms-1 );
+        // TODO: need to convert this to laplace + identity operator model (or vice versa, i.e. use gaussian for FLASH, would need to change interface)
+        const RealType varianceForUpdateField =
+          this->m_TransformMethods[currentStageNumber].m_UpdateFieldVarianceInVarianceSpace;
+        const RealType varianceForTotalField =
+          this->m_TransformMethods[currentStageNumber].m_TotalFieldVarianceInVarianceSpace;
+        // TODO: setting up metrics - this should be fine as is
+        for( unsigned int n = 0; n < stageMetricList.size(); n++ )
+          {
+          if( !this->IsPointSetMetric( stageMetricList[n].m_MetricType ) )
+            {
+            displacementFieldRegistration->SetFixedImage( n, preprocessedFixedImagesPerStage[n] );
+            displacementFieldRegistration->SetMovingImage( n, preprocessedMovingImagesPerStage[n] );
+            }
+          else
+            {
+            displacementFieldRegistration->SetFixedPointSet( n, stageMetricList[n].m_FixedLabeledPointSet.GetPointer() );
+            displacementFieldRegistration->SetMovingPointSet( n, stageMetricList[n].m_MovingLabeledPointSet.GetPointer() );
+            }
+          }
+        if( useMultiMetric )
+          {
+          displacementFieldRegistration->SetMetric( multiMetric );
+          }
+        else
+          {
+          displacementFieldRegistration->SetMetric( singleMetric );
+          }
 
-        //     typename DisplacementFieldTransformType::Pointer fixedToMiddle =
-        //       dynamic_cast<DisplacementFieldTransformType *>( oneToEndTransform.GetPointer() );
-        //     typename DisplacementFieldTransformType::Pointer movingToMiddle =
-        //       dynamic_cast<DisplacementFieldTransformType *>( endTransform.GetPointer() );
+        // TODO: initializes FLASH with previous stage of FLASH alignment
+        // this is related to the initialize-transforms-per-stage option, see antsRegistration --help
+        bool synIsInitialized = false;
+        if( this->m_InitializeTransformsPerStage )
+          {
+          if( this->m_RegistrationState.IsNotNull() )
+            {
+            const unsigned int numOfTransforms = this->m_RegistrationState->GetNumberOfTransforms();
+            // TODO: will probably only need one thing here, previous fourier velocity components
+            typename TransformType::Pointer oneToEndTransform = this->m_RegistrationState->GetNthTransform( numOfTransforms-2 );
+            typename TransformType::Pointer endTransform = this->m_RegistrationState->GetNthTransform( numOfTransforms-1 );
 
-        //     if( fixedToMiddle.IsNotNull() && movingToMiddle.IsNotNull()
-        //        && fixedToMiddle->GetInverseDisplacementField() && movingToMiddle->GetInverseDisplacementField() )
-        //       {
-        //       this->Logger() << "Current SyN transform is directly initialized from the previous stage." << std::endl;
-        //       displacementFieldRegistration->SetFixedToMiddleTransform( fixedToMiddle );
-        //       displacementFieldRegistration->SetMovingToMiddleTransform( movingToMiddle );
+            // TODO: again, will just need one thing here
+            typename DisplacementFieldTransformType::Pointer fixedToMiddle =
+              dynamic_cast<DisplacementFieldTransformType *>( oneToEndTransform.GetPointer() );
+            typename DisplacementFieldTransformType::Pointer movingToMiddle =
+              dynamic_cast<DisplacementFieldTransformType *>( endTransform.GetPointer() );
 
-        //       this->m_RegistrationState->RemoveTransform();
-        //       this->m_RegistrationState->RemoveTransform();
-        //       }
+            // TODO: again, will just need one thing here
+            if( fixedToMiddle.IsNotNull() && movingToMiddle.IsNotNull()
+               && fixedToMiddle->GetInverseDisplacementField() && movingToMiddle->GetInverseDisplacementField() )
+              {
+              this->Logger() << "Current SyN transform is directly initialized from the previous stage." << std::endl;
+              displacementFieldRegistration->SetFixedToMiddleTransform( fixedToMiddle );
+              displacementFieldRegistration->SetMovingToMiddleTransform( movingToMiddle );
 
-        //     // If there are components other than SyN state
-        //     if( this->m_RegistrationState->GetNumberOfTransforms() > 0 )
-        //       {
-        //       displacementFieldRegistration->SetMovingInitialTransform( this->m_RegistrationState );
-        //       }
-        //     synIsInitialized = true;
-        //     this->m_CompositeTransform->RemoveTransform();
-        //     }
-        //   }
+              this->m_RegistrationState->RemoveTransform();
+              this->m_RegistrationState->RemoveTransform();
+              }
 
-        // if( this->m_CompositeTransform->GetNumberOfTransforms() > 0 && !synIsInitialized )
-        //   {
-        //   displacementFieldRegistration->SetMovingInitialTransform( this->m_CompositeTransform );
-        //   }
+            // If there are components other than SyN state
+            if( this->m_RegistrationState->GetNumberOfTransforms() > 0 )
+              {
+              displacementFieldRegistration->SetMovingInitialTransform( this->m_RegistrationState );
+              }
+            synIsInitialized = true;
+            this->m_CompositeTransform->RemoveTransform();
+            }
+          }
 
-        // if( this->m_FixedInitialTransform->GetNumberOfTransforms() > 0 )
-        //   {
-        //   displacementFieldRegistration->SetFixedInitialTransform( this->m_FixedInitialTransform );
-        //   }
-        // displacementFieldRegistration->SetDownsampleImagesForMetricDerivatives( true );
-        // displacementFieldRegistration->SetAverageMidPointGradients( false );
+        // TODO: affine components of moving initial transform are probably ok like this, nonlinear part would need to be converted
+        // into fourier coefficients? Or just applied to the image and then would have to use the interpolated volume throughout.
+        if( this->m_CompositeTransform->GetNumberOfTransforms() > 0 && !synIsInitialized )
+          {
+          displacementFieldRegistration->SetMovingInitialTransform( this->m_CompositeTransform );
+          }
+        // TODO: for the fixed image, this is totally fine and will likely stay the way it is
+        if( this->m_FixedInitialTransform->GetNumberOfTransforms() > 0 )
+          {
+          displacementFieldRegistration->SetFixedInitialTransform( this->m_FixedInitialTransform );
+          }
+        // TODO: probably want this to be false? I want full resolution images for comparisons - but only if CC operator is fast
+        displacementFieldRegistration->SetDownsampleImagesForMetricDerivatives( true );
+        // TODO: not sure what this is, probably SyN specific - i.e. averages gradients at middle image?
+        displacementFieldRegistration->SetAverageMidPointGradients( false );
 
-        // displacementFieldRegistration->SetNumberOfLevels( numberOfLevels );
+        displacementFieldRegistration->SetNumberOfLevels( numberOfLevels );
 
-        // for( unsigned int level = 0; level < numberOfLevels; ++level )
-        //   {
-        //   displacementFieldRegistration->SetShrinkFactorsPerDimension( level, shrinkFactorsPerDimensionForAllLevels[level] );
-        //   }
-        // displacementFieldRegistration->SetSmoothingSigmasPerLevel( smoothingSigmasPerLevel );
-        // displacementFieldRegistration->SetSmoothingSigmasAreSpecifiedInPhysicalUnits(
-        //   this->m_SmoothingSigmasAreInPhysicalUnits[currentStageNumber] );
+        // TODO: make sure this applies to fourier representation of velocity in FLASH implementation
+        for( unsigned int level = 0; level < numberOfLevels; ++level )
+          {
+          displacementFieldRegistration->SetShrinkFactorsPerDimension( level, shrinkFactorsPerDimensionForAllLevels[level] );
+          }
+        // TODO: this should be totally fine the way it is
+        displacementFieldRegistration->SetSmoothingSigmasPerLevel( smoothingSigmasPerLevel );
+        displacementFieldRegistration->SetSmoothingSigmasAreSpecifiedInPhysicalUnits(
+          this->m_SmoothingSigmasAreInPhysicalUnits[currentStageNumber] );
 
-        // displacementFieldRegistration->SetLearningRate( learningRate );
-        // displacementFieldRegistration->SetConvergenceThreshold( convergenceThreshold );
-        // displacementFieldRegistration->SetConvergenceWindowSize( convergenceWindowSize );
-        // displacementFieldRegistration->SetNumberOfIterationsPerLevel( numberOfIterationsPerLevel );
-        // displacementFieldRegistration->SetTransformParametersAdaptorsPerLevel( adaptors );
-        // displacementFieldRegistration->SetGaussianSmoothingVarianceForTheUpdateField( varianceForUpdateField );
-        // displacementFieldRegistration->SetGaussianSmoothingVarianceForTheTotalField( varianceForTotalField );
-        // outputDisplacementFieldTransform->SetDisplacementField( displacementField );
-        // outputDisplacementFieldTransform->SetInverseDisplacementField( inverseDisplacementField );
+        // TODO: most of these are fine, smoothing variance may be converted to diff operator type, inverse may not be necessary?
+        displacementFieldRegistration->SetLearningRate( learningRate );
+        displacementFieldRegistration->SetConvergenceThreshold( convergenceThreshold );
+        displacementFieldRegistration->SetConvergenceWindowSize( convergenceWindowSize );
+        displacementFieldRegistration->SetNumberOfIterationsPerLevel( numberOfIterationsPerLevel );
+        displacementFieldRegistration->SetTransformParametersAdaptorsPerLevel( adaptors );
+        displacementFieldRegistration->SetGaussianSmoothingVarianceForTheUpdateField( varianceForUpdateField );
+        displacementFieldRegistration->SetGaussianSmoothingVarianceForTheTotalField( varianceForTotalField );
+        outputDisplacementFieldTransform->SetDisplacementField( displacementField );
+        outputDisplacementFieldTransform->SetInverseDisplacementField( inverseDisplacementField );
 
-        // // For all Velocity field and Displacement field registration types that are not using generic
-        // // itkImageRegistrationMethodv4 we use following type of observer:
-        // typedef antsDisplacementAndVelocityFieldRegistrationCommandIterationUpdate<DisplacementFieldRegistrationType>
-        //   DisplacementFieldCommandType2;
-        // typename DisplacementFieldCommandType2::Pointer displacementFieldRegistrationObserver2 =
-        //   DisplacementFieldCommandType2::New();
-        // displacementFieldRegistrationObserver2->SetLogStream(*this->m_LogStream);
-        // displacementFieldRegistrationObserver2->SetNumberOfIterations( currentStageIterations );
-        // displacementFieldRegistrationObserver2->SetOrigFixedImage( this->m_Metrics[0].m_FixedImage );
-        // displacementFieldRegistrationObserver2->SetOrigMovingImage( this->m_Metrics[0].m_MovingImage );
-        // if( this->m_PrintSimilarityMeasureInterval != 0 )
-        //   {
-        //   displacementFieldRegistrationObserver2->SetComputeFullScaleCCInterval( this->m_PrintSimilarityMeasureInterval );
-        //   }
-        // if( this->m_WriteIntervalVolumes != 0 )
-        //   {
-        //   displacementFieldRegistrationObserver2->SetWriteInterationsOutputsInIntervals( this->m_WriteIntervalVolumes );
-        //   displacementFieldRegistrationObserver2->SetCurrentStageNumber( currentStageNumber );
-        //   }
-        // displacementFieldRegistration->AddObserver( itk::InitializeEvent(), displacementFieldRegistrationObserver2 );
-        // displacementFieldRegistration->AddObserver( itk::IterationEvent(), displacementFieldRegistrationObserver2 );
+        // For all Velocity field and Displacement field registration types that are not using generic
+        // itkImageRegistrationMethodv4 we use following type of observer:
+        //TODO: this stuff should be fine - actually this observer may need to be updated to accommodate low-dim-vel style registration
+        typedef antsDisplacementAndVelocityFieldRegistrationCommandIterationUpdate<DisplacementFieldRegistrationType>
+          DisplacementFieldCommandType2;
+        typename DisplacementFieldCommandType2::Pointer displacementFieldRegistrationObserver2 =
+          DisplacementFieldCommandType2::New();
+        displacementFieldRegistrationObserver2->SetLogStream(*this->m_LogStream);
+        displacementFieldRegistrationObserver2->SetNumberOfIterations( currentStageIterations );
+        displacementFieldRegistrationObserver2->SetOrigFixedImage( this->m_Metrics[0].m_FixedImage );
+        displacementFieldRegistrationObserver2->SetOrigMovingImage( this->m_Metrics[0].m_MovingImage );
+        if( this->m_PrintSimilarityMeasureInterval != 0 )
+          {
+          displacementFieldRegistrationObserver2->SetComputeFullScaleCCInterval( this->m_PrintSimilarityMeasureInterval );
+          }
+        if( this->m_WriteIntervalVolumes != 0 )
+          {
+          displacementFieldRegistrationObserver2->SetWriteInterationsOutputsInIntervals( this->m_WriteIntervalVolumes );
+          displacementFieldRegistrationObserver2->SetCurrentStageNumber( currentStageNumber );
+          }
+        displacementFieldRegistration->AddObserver( itk::InitializeEvent(), displacementFieldRegistrationObserver2 );
+        displacementFieldRegistration->AddObserver( itk::IterationEvent(), displacementFieldRegistrationObserver2 );
 
-        // try
-        //   {
-        //   this->Logger() << std::endl << "*** Running SyN registration (varianceForUpdateField = "
-        //                  << varianceForUpdateField << ", varianceForTotalField = " << varianceForTotalField << ") ***"
-        //                  << std::endl << std::endl;
-        //   displacementFieldRegistrationObserver2->Execute( displacementFieldRegistration, itk::StartEvent() );
-        //   displacementFieldRegistration->Update();
-        //   }
-        // catch( itk::ExceptionObject & e )
-        //   {
-        //   this->Logger() << "Exception caught: " << e << std::endl;
-        //   return EXIT_FAILURE;
-        //   }
+        try
+          {
+          // TODO: change to FLASH! maybe need diff oper type reg params here
+          this->Logger() << std::endl << "*** Running SyN registration (varianceForUpdateField = "
+                         << varianceForUpdateField << ", varianceForTotalField = " << varianceForTotalField << ") ***"
+                         << std::endl << std::endl;
+          displacementFieldRegistrationObserver2->Execute( displacementFieldRegistration, itk::StartEvent() );
+          displacementFieldRegistration->Update();
+          }
+        catch( itk::ExceptionObject & e )
+          {
+          this->Logger() << "Exception caught: " << e << std::endl;
+          return EXIT_FAILURE;
+          }
 
-        // // Add calculated internal transforms to the registration state
-        // if( this->m_RegistrationState.IsNull() )
-        //   {
-        //   this->m_RegistrationState = CompositeTransformType::New();
-        //   }
-        // this->m_RegistrationState->ClearTransformQueue();
-        // this->m_RegistrationState->AddTransform( this->m_CompositeTransform );
-        // this->m_RegistrationState->AddTransform( displacementFieldRegistration->GetModifiableFixedToMiddleTransform() );
-        // this->m_RegistrationState->AddTransform( displacementFieldRegistration->GetModifiableMovingToMiddleTransform() );
-        // this->m_RegistrationState->FlattenTransformQueue();
+        // Add calculated internal transforms to the registration state
+        if( this->m_RegistrationState.IsNull() )
+          {
+          this->m_RegistrationState = CompositeTransformType::New();
+          }
+        this->m_RegistrationState->ClearTransformQueue();
+        this->m_RegistrationState->AddTransform( this->m_CompositeTransform );
+        // TODO: don't need two transform types here
+        this->m_RegistrationState->AddTransform( displacementFieldRegistration->GetModifiableFixedToMiddleTransform() );
+        this->m_RegistrationState->AddTransform( displacementFieldRegistration->GetModifiableMovingToMiddleTransform() );
+        this->m_RegistrationState->FlattenTransformQueue();
 
-        // // Add calculated transform to the composite transform
-        // this->m_CompositeTransform->AddTransform( outputDisplacementFieldTransform );
-        // this->m_AllPreviousTransformsAreLinear = false;
+        // Add calculated transform to the composite transform
+        // TODO: seems like outputDisplacementFieldTransform was modified by displacementFieldRegistration by reference
+        this->m_CompositeTransform->AddTransform( outputDisplacementFieldTransform );
+        this->m_AllPreviousTransformsAreLinear = false;
         }
         break;
       // END: FLASH edit
