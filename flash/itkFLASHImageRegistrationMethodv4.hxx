@@ -24,10 +24,10 @@
 
 namespace itk
 {
+// TODO: initialize all FLASH specific class variables
 /**
  * Constructor
  */
-// TODO: initialize all FLASH specific class variables
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
 ::FLASHImageRegistrationMethod() :
@@ -47,13 +47,17 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   this->m_MovingToMiddleTransform = ITK_NULLPTR;
 }
 
+
+/**
+ * Destructor
+ */
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
 ::~FLASHImageRegistrationMethod()
 {
 }
 
-// TODO: customize this initialization for FLASH - i.e. "resample" fourier coefficients at new res, actually should just be padding right?
+
 /**
  * Initialize registration objects for optimization at a specific level
  */
@@ -64,16 +68,18 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 {
   Superclass::InitializeRegistrationAtEachLevel( level );
 
+  // TODO: modify names and add other objects to if and code block
   if( level == 0 )
     {
-    // If FixedToMiddle and MovingToMiddle transforms are not set already for state restoration
+    // If velocity and displacement objects are not initialized from a state restoration
     //
-    if( this->m_FixedToMiddleTransform.IsNull() || this->m_MovingToMiddleTransform.IsNull() )
+    if( this->m_FixedToMiddleTransform.IsNull() )
       {
       // Initialize the FixedToMiddleTransform as an Identity displacement field transform
       //
+      // TODO: example of initializing a 0 value displacement field
+      // TODO: initialize FLASH related objects
       this->m_FixedToMiddleTransform = OutputTransformType::New();
-      this->m_MovingToMiddleTransform = OutputTransformType::New();
 
       VirtualImageBaseConstPointer virtualDomainImage = this->GetCurrentLevelVirtualDomainImage();
 
@@ -93,30 +99,20 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 
       this->m_FixedToMiddleTransform->SetDisplacementField( fixedDisplacementField );
       this->m_FixedToMiddleTransform->SetInverseDisplacementField( fixedInverseDisplacementField );
-
-      typename DisplacementFieldType::Pointer movingDisplacementField = DisplacementFieldType::New();
-      movingDisplacementField->CopyInformation( virtualDomainImage );
-      movingDisplacementField->SetRegions( virtualDomainImage->GetBufferedRegion() );
-      movingDisplacementField->Allocate();
-      movingDisplacementField->FillBuffer( zeroVector );
-
-      typename DisplacementFieldType::Pointer movingInverseDisplacementField = DisplacementFieldType::New();
-      movingInverseDisplacementField->CopyInformation( virtualDomainImage );
-      movingInverseDisplacementField->SetRegions( virtualDomainImage->GetBufferedRegion() );
-      movingInverseDisplacementField->Allocate();
-      movingInverseDisplacementField->FillBuffer( zeroVector );
-
-      this->m_MovingToMiddleTransform->SetDisplacementField( movingDisplacementField );
-      this->m_MovingToMiddleTransform->SetInverseDisplacementField( movingInverseDisplacementField );
       }
     else
       {
+      // TODO: modify to check for an appropriate FLASH related object instead
       if( this->m_FixedToMiddleTransform->GetInverseDisplacementField()
-         && this->m_MovingToMiddleTransform->GetInverseDisplacementField() )
+         && this->m_FixedToMiddleTransform->GetInverseDisplacementField() )
          {
-         itkDebugMacro( "SyN registration is initialized by restoring the state.");
-         this->m_TransformParametersAdaptorsPerLevel[0]->SetTransform( this->m_MovingToMiddleTransform );
-         this->m_TransformParametersAdaptorsPerLevel[0]->AdaptTransformParameters();
+         // TODO: learn more about adaptor - set with appropriate object
+         // TODO: maybe number of fourier coefficients and spatial subsampling should be separate entities?
+         // TODO: maybe you want control over both for even more increased speed?
+         // TODO: will need to update interface, and also think about the consequences of changing the number of
+         // TODO: fourier coefficients and the spatial resolution simultaneously, but if things are in physical
+         // TODO: units, then it shouldn't be too complex
+         itkDebugMacro( "FLASH registration is initialized by restoring the state.");
          this->m_TransformParametersAdaptorsPerLevel[0]->SetTransform( this->m_FixedToMiddleTransform );
          this->m_TransformParametersAdaptorsPerLevel[0]->AdaptTransformParameters();
          }
@@ -128,15 +124,15 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     }
   else if( this->m_TransformParametersAdaptorsPerLevel[level] )
     {
-    this->m_TransformParametersAdaptorsPerLevel[level]->SetTransform( this->m_MovingToMiddleTransform );
-    this->m_TransformParametersAdaptorsPerLevel[level]->AdaptTransformParameters();
+    // TODO: these transform adaptors may not be necessary if I'm just augmenting the num of fourier coefficients at each level
+    // TODO: instead of resampling the image resolution
+    // TODO: probably just have to pad the set of fourier coefficients used to determine deformation
     this->m_TransformParametersAdaptorsPerLevel[level]->SetTransform( this->m_FixedToMiddleTransform );
     this->m_TransformParametersAdaptorsPerLevel[level]->AdaptTransformParameters();
     }
 }
 
 
-// TODO: customize for FLASH, may be very similar if this is just the gradient descent scheme
 /*
  * Start the optimization at each level.  We just do a basic gradient descent operation.
  */
@@ -159,7 +155,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   typename ConvergenceMonitoringType::Pointer convergenceMonitoring = ConvergenceMonitoringType::New();
   convergenceMonitoring->SetWindowSize( this->m_ConvergenceWindowSize );
 
-  IterationReporter reporter( this, 0, 1 );
+  IterationReporter reporter( this, 0, 1 );  // TODO: should maybe read about this reporter function
 
   while( this->m_CurrentIteration++ < this->m_NumberOfIterationsPerLevel[this->m_CurrentLevel] && !this->m_IsConverged )
     {
@@ -168,12 +164,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       {
       fixedComposite->AddTransform( fixedInitialTransform );
       }
-    fixedComposite->AddTransform( this->m_FixedToMiddleTransform->GetInverseTransform() );
     fixedComposite->FlattenTransformQueue();
-    fixedComposite->SetOnlyMostRecentTransformToOptimizeOn();
 
     typename CompositeTransformType::Pointer movingComposite = CompositeTransformType::New();
     movingComposite->AddTransform( this->m_CompositeTransform );
+    // TODO: change MovingToMiddle to \phi_{1,0}
     movingComposite->AddTransform( this->m_MovingToMiddleTransform->GetInverseTransform() );
     movingComposite->FlattenTransformQueue();
     movingComposite->SetOnlyMostRecentTransformToOptimizeOn();
@@ -183,37 +178,18 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     MeasureType fixedMetricValue = 0.0;
     MeasureType movingMetricValue = 0.0;
 
-    DisplacementFieldPointer fixedToMiddleSmoothUpdateField = this->ComputeUpdateField(
-      this->m_FixedSmoothImages, this->m_FixedPointSets, fixedComposite,
-      this->m_MovingSmoothImages, this->m_MovingPointSets, movingComposite,
-      this->m_FixedImageMasks, this->m_MovingImageMasks, movingMetricValue );
-
+    // TODO: this one function call will encapsulate both forward/backward shooting for me, the complete gradient calculation
     DisplacementFieldPointer movingToMiddleSmoothUpdateField = this->ComputeUpdateField(
       this->m_MovingSmoothImages, this->m_MovingPointSets, movingComposite,
       this->m_FixedSmoothImages, this->m_FixedPointSets, fixedComposite,
       this->m_MovingImageMasks, this->m_FixedImageMasks, fixedMetricValue );
 
-    if ( this->m_AverageMidPointGradients )
-      {
-      ImageRegionIteratorWithIndex<DisplacementFieldType> ItF( fixedToMiddleSmoothUpdateField, fixedToMiddleSmoothUpdateField->GetLargestPossibleRegion() );
-      for( ItF.GoToBegin(); !ItF.IsAtEnd(); ++ItF )
-        {
-        ItF.Set( ItF.Get() - movingToMiddleSmoothUpdateField->GetPixel( ItF.GetIndex() ) );
-        movingToMiddleSmoothUpdateField->SetPixel( ItF.GetIndex(), -ItF.Get() );
-        }
-      }
-
     // Add the update field to both displacement fields (from fixed/moving to middle image) and then smooth
 
+    // TODO: example of how to compose displacement field with update
+    // TODO: this will eventually be removed, since the total transform is constructed from shooting, but I'll
+    // TODO: keep it for now as an example, because the shooting methods will use it
     typedef ComposeDisplacementFieldsImageFilter<DisplacementFieldType> ComposerType;
-
-    typename ComposerType::Pointer fixedComposer = ComposerType::New();
-    fixedComposer->SetDisplacementField( fixedToMiddleSmoothUpdateField );
-    fixedComposer->SetWarpingField( this->m_FixedToMiddleTransform->GetDisplacementField() );
-    fixedComposer->Update();
-
-    DisplacementFieldPointer fixedToMiddleSmoothTotalFieldTmp = this->GaussianSmoothDisplacementField(
-      fixedComposer->GetOutput(), this->m_GaussianSmoothingVarianceForTheTotalField );
 
     typename ComposerType::Pointer movingComposer = ComposerType::New();
     movingComposer->SetDisplacementField( movingToMiddleSmoothUpdateField );
@@ -224,22 +200,18 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       movingComposer->GetOutput(), this->m_GaussianSmoothingVarianceForTheTotalField );
 
     // Iteratively estimate the inverse fields.
-
-    DisplacementFieldPointer fixedToMiddleSmoothTotalFieldInverse = this->InvertDisplacementField( fixedToMiddleSmoothTotalFieldTmp, this->m_FixedToMiddleTransform->GetInverseDisplacementField() );
-    DisplacementFieldPointer fixedToMiddleSmoothTotalField = this->InvertDisplacementField( fixedToMiddleSmoothTotalFieldInverse, fixedToMiddleSmoothTotalFieldTmp );
-
+    // TODO: these will be unnecessary, as inverse is computed during shooting using advection equation
     DisplacementFieldPointer movingToMiddleSmoothTotalFieldInverse = this->InvertDisplacementField( movingToMiddleSmoothTotalFieldTmp, this->m_MovingToMiddleTransform->GetInverseDisplacementField() );
     DisplacementFieldPointer movingToMiddleSmoothTotalField = this->InvertDisplacementField( movingToMiddleSmoothTotalFieldInverse, movingToMiddleSmoothTotalFieldTmp );
 
     // Assign the displacement fields and their inverses to the proper transforms.
-    this->m_FixedToMiddleTransform->SetDisplacementField( fixedToMiddleSmoothTotalField );
-    this->m_FixedToMiddleTransform->SetInverseDisplacementField( fixedToMiddleSmoothTotalFieldInverse );
 
     this->m_MovingToMiddleTransform->SetDisplacementField( movingToMiddleSmoothTotalField );
     this->m_MovingToMiddleTransform->SetInverseDisplacementField( movingToMiddleSmoothTotalFieldInverse );
 
-    this->m_CurrentMetricValue = 0.5 * ( movingMetricValue + fixedMetricValue );
+    this->m_CurrentMetricValue = fixedMetricValue;
 
+    // TODO: this part is totally fine, just need to supply the correct energy value based on FLASH objective function
     convergenceMonitoring->AddEnergyValue( this->m_CurrentMetricValue );
     this->m_CurrentConvergenceValue = convergenceMonitoring->GetConvergenceValue();
 
@@ -275,7 +247,9 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 }
 
 
-// TODO: update for FLASH, this is by far the longest method - maybe where I'd use summed area tables to speed up LCC computation?
+// TODO: wow, this recomputes the downsampling of the fixed image and it's mask on every single iteration... so inefficient
+// TODO: also, lots of code duplication here between multiMetric and singleMetric case, could be cleaned up with private subroutine
+// TODO: eventually want to look at LCC computation to ensure it uses Summed Area Tables
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 typename FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>::DisplacementFieldPointer
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
@@ -549,10 +523,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       }
     }
 
-  // we rescale the update velocity field at each time point.
-  // we first need to convert to a displacement field to look
-  // at the max norm of the field.
-
   typename DisplacementFieldType::Pointer gradientField = DisplacementFieldType::New();
   gradientField->CopyInformation( virtualDomainImage );
   gradientField->SetRegions( virtualDomainImage->GetRequestedRegion() );
@@ -575,7 +545,9 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 }
 
 
-// TODO: update for FLASH, not sure if this method will be necessary?
+// TODO: this method can remain exactly the same, should just change the terminology to reflect that it's the initial velocity
+// TODO: field that is getting scaled. Fourier domain isn't relevant here because multiplication with a constant permutes with
+// TODO: linear operators like the Fourier transform.
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 typename FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>::DisplacementFieldPointer
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
@@ -625,6 +597,8 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 
 
 // TODO: update for FLASH, inverted displacement automatically computed in shooting, so just return that?
+// TODO: this could possibly be better than solving advection equation... I mean, I definitely don't want to implement
+// TODO: that finive-volume method again
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 typename FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>::DisplacementFieldPointer
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
@@ -646,7 +620,10 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 }
 
 
-// TODO: update for FLASH, may duplicate this method to have diff oper type smoothing
+
+/**
+ * Smooth a field, ensure boundary is zeroVector, if variance is very small, weighted average smooth and original field
+ */
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 typename FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>::DisplacementFieldPointer
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
@@ -670,6 +647,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   typedef VectorNeighborhoodOperatorImageFilter<DisplacementFieldType, DisplacementFieldType> GaussianSmoothingSmootherType;
   typename GaussianSmoothingSmootherType::Pointer smoother = GaussianSmoothingSmootherType::New();
 
+  // TODO: investigate if these operators do smoothing in spatial or Fourier domain, could be significant bottleneck
   for( SizeValueType d = 0; d < ImageDimension; d++ )
     {
     // smooth along this dimension
