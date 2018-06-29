@@ -538,11 +538,11 @@ RegistrationHelper<TComputeType, VImageDimension>
 
   init.m_XfrmMethod = FLASH;
   init.m_GradientStep = GradientStep;
-  init.m_NumberOfTimeIndices = timeStep;
-  init.m_regTermWeight = regTermWeight;
-  init.m_laplaceWeight = laplaceWeight;
-  init.m_identityWeight = identityWeight;
-  init.m_operatorPower = operatorPower;
+  init.m_NumberOfTimeSteps = timeStep;
+  init.m_RegularizerTermWeight = regTermWeight;
+  init.m_LaplacianWeight = laplaceWeight;
+  init.m_IdentityWeight = identityWeight;
+  init.m_OperatorOrder = operatorPower;
   this->m_TransformMethods.push_back( init );
 }
 // END: FLASH edit
@@ -3482,6 +3482,13 @@ RegistrationHelper<TComputeType, VImageDimension>
         displacementFieldRegistration->SetTransformParametersAdaptorsPerLevel( adaptors );
         displacementFieldRegistration->SetGaussianSmoothingVarianceForTheUpdateField( varianceForUpdateField );
         displacementFieldRegistration->SetGaussianSmoothingVarianceForTheTotalField( varianceForTotalField );
+        // FLASH EDIT
+        displacementFieldRegistration->SetRegularizerTermWeight(this->m_TransformMethods[currentStageNumber].m_RegularizerTermWeight);
+        displacementFieldRegistration->SetLaplacianWeight(this->m_TransformMethods[currentStageNumber].m_LaplacianWeight);
+        displacementFieldRegistration->SetIdentityWeight(this->m_TransformMethods[currentStageNumber].m_IdentityWeight);
+        displacementFieldRegistration->SetOperatorOrder(this->m_TransformMethods[currentStageNumber].m_OperatorOrder);
+        displacementFieldRegistration->SetNumberOfTimeSteps(this->m_TransformMethods[currentStageNumber].m_NumberOfTimeSteps);
+        // END: FLASH EDIT
         outputDisplacementFieldTransform->SetDisplacementField( displacementField );
         outputDisplacementFieldTransform->SetInverseDisplacementField( inverseDisplacementField );
 
