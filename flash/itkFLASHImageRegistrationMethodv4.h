@@ -195,8 +195,6 @@ protected:
 
   virtual void InitializeRegistrationAtEachLevel( const SizeValueType ) ITK_OVERRIDE;
 
-  // TODO: review if I'm actually using these in hxx
-  // TODO: maybe need more FLASH specific methods
   virtual DisplacementFieldPointer ComputeUpdateField( const FixedImagesContainerType, const PointSetsContainerType,
     const TransformBaseType *, const MovingImagesContainerType, const PointSetsContainerType,
     const TransformBaseType *, const FixedImageMasksContainerType, const MovingImageMasksContainerType, MeasureType & );
@@ -207,22 +205,73 @@ protected:
 
   virtual DisplacementFieldPointer ScaleUpdateField( const DisplacementFieldType * );
   virtual DisplacementFieldPointer GaussianSmoothDisplacementField( const DisplacementFieldType *, const RealType );
-  // TODO: this invert method probably isn't required, as inverse field is computed during shooting
   virtual DisplacementFieldPointer InvertDisplacementField( const DisplacementFieldType *, const DisplacementFieldType * = ITK_NULLPTR );
   
-  // TODO: check if I'm actually using these
   // TODO: add FLASH specific member variables
   RealType                                                        m_LearningRate;
 
   OutputTransformPointer                                          m_MovingToMiddleTransform;
-  OutputTransformPointer                                          m_FixedToMiddleTransform;
 
   RealType                                                        m_ConvergenceThreshold;
   unsigned int                                                    m_ConvergenceWindowSize;
 
   NumberOfIterationsArrayType                                     m_NumberOfIterationsPerLevel;
   bool                                                            m_DownsampleImagesForMetricDerivatives;
-  bool                                                            m_AverageMidPointGradients;
+
+  // FLASH EDIT
+  // FLASH specific variables
+  RealType                                                        m_RegularizerTermWeight;
+  RealType                                                        m_LaplacianWeight;
+  RealType                                                        m_IdentityWeight;
+  RealType                                                        m_OperatorOrder;
+  unsigned int                                                    m_NumberOfTimeSteps;
+
+  // Set/Get for the FLASH specific variables
+  void SetRegularizerTermWeight( RealType weight)
+    {
+      this->m_RegularizerTermWeight = weight;
+    }
+  RealType GetRegularizerTermWeight() const
+    {
+      return this->m_RegularizerTermWeight;
+    }
+
+  void SetLaplacianWeight( RealType weight)
+    {
+      this->m_LaplacianWeight = weight;
+    }
+  RealType GetLaplacianWeight() const
+    {
+      return this->m_LaplacianWeight;
+    }
+
+  void SetIdentityWeight( RealType weight)
+    {
+      this->m_IdentityWeight = weight;
+    }
+  RealType GetIdentityWeight() const
+    {
+      return this->m_IdentityWeight;
+    }
+
+  void SetOperatorOrder( RealType weight)
+    {
+      this->m_OperatorOrder = weight;
+    }
+  RealType GetOperatorOrder() const
+    {
+      return this->m_OperatorOrder;
+    }
+
+  void SetNumberOfTimeSteps( unsigned int steps)
+    {
+      this->m_NumberOfTimeSteps = steps;
+    }
+  unsigned int GetNumberOfTimeSteps() const
+    {
+      return this->m_NumberOfTimeSteps;
+    }
+  // END: FLASH EDIT
 
 private:
   ITK_DISALLOW_COPY_AND_ASSIGN(FLASHImageRegistrationMethod);

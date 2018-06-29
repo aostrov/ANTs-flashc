@@ -20,7 +20,23 @@
 
 #include "itkFLASHImageRegistrationMethodv4.h"
 
-// TODO: FLASH specific includes here!
+// FLASH EDIT
+#include "FftOper.h"
+#include "FieldComplex3D.h"
+  // from PyCA library
+#include "ITKFileIO.h"
+#include "IOpers.h"
+#include "FOpers.h"
+#include "IFOpers.h"
+#include "HFOpers.h"
+#include "Reduction.h"
+#include "FluidKernelFFT.h"
+  // end: from PyCA library
+// END: FLASH EDIT
+
+// FLASH EDIT
+using namespace PyCA;
+// END: FLASH EDIT
 
 namespace itk
 {
@@ -45,6 +61,13 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   this->m_AverageMidPointGradients = false;
   this->m_FixedToMiddleTransform = ITK_NULLPTR;
   this->m_MovingToMiddleTransform = ITK_NULLPTR;
+  // FLASH EDIT
+  this->m_RegularizerTermWeight = 0.03;
+  this->m_LaplacianWeight = 3.0;
+  this->m_IdentityWeight = 1.0;
+  this->m_OperatorOrder = 6.0;
+  this->m_NumberOfTimeSteps = 10;
+  // END: FLASH EDIT
 }
 
 
