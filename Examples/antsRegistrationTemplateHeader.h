@@ -907,38 +907,38 @@ DoRegistration(typename ParserType::Pointer & parser)
       // FLASH edit
       case RegistrationHelperType::FLASH:
         {
-        float regTermWeight = 0.03;
+        float RegularizerTermWeight = 0.03;
         if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
           {
-          regTermWeight =
+          RegularizerTermWeight =
             parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter( 1 ) );
           }
-        float laplaceWeight = 3.0;
+        float LaplacianWeight = 3.0;
         if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
           {
-          laplaceWeight =
+          LaplacianWeight =
             parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter( 2 ) );
           }
-        float identityWeight = 1.0;
+        float IdentityWeight = 1.0;
         if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
           {
-          identityWeight =
+          IdentityWeight =
             parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter( 3 ) );
           }
-        float operatorPower = 6.0;
+        float OperatorOrder = 6.0;
         if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
           {
-          operatorPower =
+          OperatorOrder =
             parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter( 4 ) );
           }
-        unsigned int timeSteps = 10;
+        unsigned int NumberOfTimeSteps = 10;
         if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
           {
-          timeSteps =
+          NumberOfTimeSteps =
             parser->Convert<unsigned int>( transformOption->GetFunction( currentStage )->GetParameter( 5 ) );
           }
-        regHelper->AddFLASHTransform( learningRate, regTermWeight, laplaceWeight,
-                                      identityWeight, operatorPower, timeSteps );
+        regHelper->AddFLASHTransform( learningRate, RegularizerTermWeight, LaplacianWeight,
+                                      IdentityWeight, OperatorOrder, NumberOfTimeSteps );
         }
         break;
       // END: FLASH edit
