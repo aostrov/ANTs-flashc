@@ -97,7 +97,9 @@ option(ITK_BUILD_MINC_SUPPORT "Build support for MINC2" OFF)
 
 set(EXTERNAL_PROJECT_BUILD_TYPE "Release" CACHE STRING "Default build type for support libraries")
 
-
+# FLASH EDIT
+option(USE_SYSTEM_PyCA "Build using an externally defined version of PyCA" ON)
+# END: FLASH EDIT
 option(USE_SYSTEM_ITK "Build using an externally defined version of ITK" OFF)
 option(USE_SYSTEM_SlicerExecutionModel "Build using an externally defined version of SlicerExecutionModel"  OFF)
 
@@ -115,7 +117,6 @@ option(OLD_BASELINE_TESTS "Use reported metrics from old tests"                 
 #------------------------------------------------------------------------------
 # ${LOCAL_PROJECT_NAME} dependency list
 #------------------------------------------------------------------------------
-
 set(ITK_EXTERNAL_NAME ITKv${ITK_VERSION_MAJOR})
 
 if(USE_VTK)
@@ -233,6 +234,8 @@ list(APPEND ${CMAKE_PROJECT_NAME}_SUPERBUILD_EP_VARS
   RUN_SHORT_TESTS:BOOL
   RUN_LONG_TESTS:BOOL
   OLD_BASELINE_TESTS:BOOL
+  PyCA_DIR:PATH       # FLASH EDIT
+  PyCA_SOURCE:PATH    # END: FLASH EDIT
 
   ${LOCAL_PROJECT_NAME}_CLI_LIBRARY_OUTPUT_DIRECTORY:PATH
   ${LOCAL_PROJECT_NAME}_CLI_ARCHIVE_OUTPUT_DIRECTORY:PATH

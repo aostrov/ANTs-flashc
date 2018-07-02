@@ -15,15 +15,13 @@
  *  limitations under the License.
  *
  *=========================================================================*/
-#ifndef itkFLASHImageRegistrationMethodv4_hxx
-#define itkFLASHImageRegistrationMethodv4_hxx
+#ifndef itkFLASHImageRegistrationMethod_hxx
+#define itkFLASHImageRegistrationMethod_hxx
 
-#include "itkFLASHImageRegistrationMethodv4.h"
+#include "itkFLASHImageRegistrationMethod.h"
 
-// FLASH EDIT
 #include "FftOper.h"
 #include "FieldComplex3D.h"
-  // from PyCA library
 #include "ITKFileIO.h"
 #include "IOpers.h"
 #include "FOpers.h"
@@ -31,16 +29,11 @@
 #include "HFOpers.h"
 #include "Reduction.h"
 #include "FluidKernelFFT.h"
-  // end: from PyCA library
-// END: FLASH EDIT
 
-// FLASH EDIT
 using namespace PyCA;
-// END: FLASH EDIT
 
 namespace itk
 {
-// TODO: initialize all FLASH specific class variables
 /**
  * Constructor
  */
@@ -58,16 +51,12 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   this->m_NumberOfIterationsPerLevel[1] = 30;
   this->m_NumberOfIterationsPerLevel[2] = 40;
   this->m_DownsampleImagesForMetricDerivatives = true;
-  this->m_AverageMidPointGradients = false;
-  this->m_FixedToMiddleTransform = ITK_NULLPTR;
   this->m_MovingToMiddleTransform = ITK_NULLPTR;
-  // FLASH EDIT
   this->m_RegularizerTermWeight = 0.03;
   this->m_LaplacianWeight = 3.0;
   this->m_IdentityWeight = 1.0;
   this->m_OperatorOrder = 6.0;
   this->m_NumberOfTimeSteps = 10;
-  // END: FLASH EDIT
 }
 
 
@@ -791,11 +780,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   os << indent << "Gaussian smoothing variance for the update field: " << this->m_GaussianSmoothingVarianceForTheUpdateField << std::endl;
   os << indent << "Gaussian smoothing variance for the total field: " << this->m_GaussianSmoothingVarianceForTheTotalField << std::endl;
   // TODO: put in the correct variable names here once they've been added to the registration object
-  os << indent << "regularizer term weight: " << this-> /* reg term weight here */ << std::endl;
-  os << indent << "Laplacian term weight: " << this-> /* Laplacian term weight here */ << std::endl;
-  os << indent << "identity term weight: " << this-> /* identity term weight here */ << std::endl;
-  os << indent << "differential operator order: " << this-> /* differential operator order here */ << std::endl;
-  os << indent << "number of time steps in integration: " << this-> /* num of time steps here */ << std::endl;
+  os << indent << "regularizer term weight: " << this->m_RegularizerTermWeight << std::endl;
+  os << indent << "Laplacian term weight: " << this->m_LaplacianWeight << std::endl;
+  os << indent << "identity term weight: " << this->m_IdentityWeight << std::endl;
+  os << indent << "differential operator order: " << this->m_OperatorOrder << std::endl;
+  os << indent << "number of time steps in integration: " << this->m_NumberOfTimeSteps << std::endl;
 }
 
 } // end namespace itk

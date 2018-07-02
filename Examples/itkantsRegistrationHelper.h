@@ -103,6 +103,10 @@
 #include "antsRegistrationOptimizerCommandIterationUpdate.h"
 #include "antsDisplacementAndVelocityFieldRegistrationCommandIterationUpdate.h"
 
+// FLASH EDIT
+#include "itkFLASHImageRegistrationMethod.h" // TODO: need to tell cmake where this is!
+// END: FLASH EDIT
+
 namespace ants
 {
 typedef itk::ants::CommandLineParser ParserType;
@@ -438,7 +442,7 @@ public:
     // TimeVaryingVelocityField
     RealType       m_UpdateFieldTimeSigma;
     RealType       m_TotalFieldTimeSigma;
-    unsigned int   m_NumberOfTimeIndices; // also FLASH
+    unsigned int   m_NumberOfTimeIndices;
     // TimeVaryingBSplineVelocityField
     std::vector<unsigned int> m_VelocityFieldMeshSize;
     unsigned int              m_NumberOfTimePointSamples;
@@ -448,10 +452,11 @@ public:
     std::vector<unsigned int> m_VelocityFieldMeshSizeAtBaseLevel;
     // FLASH edit
     // FLASH
-    RealType      m_regTermWeight;
-    RealType      m_laplaceWeight;
-    RealType      m_identityWeight;
-    RealType      m_operatorPower;
+    RealType      m_RegularizerTermWeight;
+    RealType      m_LaplacianWeight;
+    RealType      m_IdentityWeight;
+    RealType      m_OperatorOrder;
+    unsigned int  m_NumberOfTimeSteps;
     // END: FLASH edit
   };
 
@@ -630,8 +635,8 @@ public:
   /**
    * add a FLASH transform
    */
-  void AddFLASHTransform(RealType GradientStep, RealType regTermWeight, RealType laplaceWeight,
-                         RealType identityWeight, RealType operatorPower, unsigned int timeStep);
+  void AddFLASHTransform(RealType GradientStep, RealType RegularizerTermWeight, RealType LaplacianWeight,
+                         RealType IdentityWeight, RealType OperatorOrder, unsigned int NumberOfTimeSteps);
   // END: FLASH edit
 
   /**

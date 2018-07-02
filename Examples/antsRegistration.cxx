@@ -370,10 +370,9 @@ static void antsRegistrationInitializeCommandLineOptions( itk::ants::CommandLine
     13,
     "BSplineExponential[gradientStep,updateFieldMeshSizeAtBaseLevel,velocityFieldMeshSizeAtBaseLevel,<numberOfIntegrationSteps>,<splineOrder=3>]" );
   // FLASH edit
-  // TODO: eventually switch to gaussian reg
-  // TODO: regTermWeight should be implied by weight in metric function input
+  // TODO: eventually switch to gaussian reg?
   option->SetUsageOption(
-    14, "FLASH[gradientStep,regTermWeight,laplaceWeight,identityWeight,operatorPower,timeSteps]");
+    14, "FLASH[gradientStep,RegularizerTermWeight,LaplacianWeight,IdentityWeight,OperatorOrder,NumberOfTimeSteps]");
   // END: FLASH edit
   option->SetDescription( description );
   parser->AddOption( option );

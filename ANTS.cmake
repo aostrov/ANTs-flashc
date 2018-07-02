@@ -44,7 +44,39 @@ message(STATUS "Building ${PROJECT_NAME} version \"${${PROJECT_NAME}_VERSION}\""
 # Set up ITK
 find_package(ITK 5 REQUIRED)
 include(${ITK_USE_FILE})
+message(${ITK_USE_FILE})
 
+# FLASH EDIT
+# currently a terrible hack
+# (1) paths should not be hardcoded, should be provided by user to ccmake
+# (2) PyCA should be treated exactly like ITK in the way it is found and included
+# looks for PyCA bin directory
+set(PyCA_DIR "/Users/fleishmang/Development/bin/pyca")
+set(PyCA_SOURCE "/Users/fleishmang/Development/source/pyca")
+IF(PyCA_DIR)
+  INCLUDE(${PyCA_DIR}/PyCAConfig.cmake)
+  INCLUDE_DIRECTORIES(${PyCA_INCLUDE_DIRECTORIES})
+ELSE(PyCA_DIR)
+  MESSAGE("PyCA_DIR (binary dir for compiled PyCA library) required but missing")
+ENDIF(PyCA_DIR)
+
+# == Setup PyCA Include Directories (files missing in PyCA_DIR): ==
+set(PyCA_SOURCE "" CACHE FILEPATH "PyCA source code path")
+LINK_DIRECTORIES( ${PyCA_SOURCE} )
+set(PyCA_SOURCE "" CACHE FILEPATH "PyCA header file path")
+If(PyCA_SOURCE)
+  LIST(APPEND PyCA_INCLUDE_DIRECTORIES
+       ${PyCA_SOURCE}/Code/Cxx/inc/types
+       ${PyCA_SOURCE}/Code/Cxx/inc/math
+       ${PyCA_SOURCE}/Code/Cxx/inc/alg
+       ${PyCA_SOURCE}/Code/Cxx/inc/io
+       ${PyCA_SOURCE}/Code/Cxx/src/math
+  )
+  INCLUDE_DIRECTORIES(${PyCA_INCLUDE_DIRECTORIES})
+ELSE(PyCA_SOURCE)
+  MESSAGE("PyCA source code directory is required but missing")
+ENDIF(PyCA_SOURCE)
+# END: FLASH EDIT
 
 # Set up which ANTs apps to build
 option(BUILD_ALL_ANTS_APPS "Use All ANTs Apps" ON)
@@ -143,6 +175,7 @@ ${CMAKE_CURRENT_SOURCE_DIR}/Tensor
 ${CMAKE_CURRENT_SOURCE_DIR}/Temporary
 ${CMAKE_CURRENT_SOURCE_DIR}/Examples
 ${CMAKE_CURRENT_BINARY_DIR}
+${CMAKE_CURRENT_SOURCE_DIR}/flash  # FLASH EDIT
 )
 include_directories(${PICSL_INCLUDE_DIRS})
 

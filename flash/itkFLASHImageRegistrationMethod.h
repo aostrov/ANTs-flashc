@@ -15,15 +15,15 @@
  *  limitations under the License.
  *
  *=========================================================================*/
-#ifndef itkFLASHImageRegistrationMethodv4_h
-#define itkFLASHImageRegistrationMethodv4_h
+#ifndef itkFLASHImageRegistrationMethod_h
+#define itkFLASHImageRegistrationMethod_h
 
 #include "itkImageRegistrationMethodv4.h"
 
 namespace itk
 {
 
-/** \class FLASHImageRegistrationMethodv4
+/** \class FLASHImageRegistrationMethod
  * \brief Interface method for the current registration framework
  * using the FLASH geodesic shooting registration method
  *
@@ -64,12 +64,12 @@ template<typename TFixedImage, typename TMovingImage, typename TOutputTransform 
   DisplacementFieldTransform<double, TFixedImage::ImageDimension>,
   typename TVirtualImage = TFixedImage,
   typename TPointSet = PointSet<unsigned int, TFixedImage::ImageDimension> >
-class ITK_TEMPLATE_EXPORT FLASHImageRegistrationMethodv4
+class ITK_TEMPLATE_EXPORT FLASHImageRegistrationMethod
 : public ImageRegistrationMethodv4<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
 {
 public:
   /** Standard class typedefs. */
-  typedef FLASHImageRegistrationMethodv4                                          Self;
+  typedef FLASHImageRegistrationMethod                                          Self;
   typedef ImageRegistrationMethodv4<TFixedImage, TMovingImage, TOutputTransform,
                                                        TVirtualImage, TPointSet>  Superclass;
   typedef SmartPointer<Self>                                                      Pointer;
@@ -82,9 +82,9 @@ public:
   itkStaticConstMacro( ImageDimension, unsigned int, TFixedImage::ImageDimension );
 
   /** Run-time type information (and related methods). */
-  itkTypeMacro( FLASHImageRegistrationMethodv4, ImageRegistrationMethodv4 );  // might need SimpleImageRegistrationMethod for 2nd arg instead
+  itkTypeMacro( FLASHImageRegistrationMethod, ImageRegistrationMethodv4 );  // might need SimpleImageRegistrationMethod for 2nd arg instead
 
-  // TODO: some of these typedefs may be unnecessary, review after I've built itkFLASHImageRegistrationMethodv4.hxx
+  // TODO: some of these typedefs may be unnecessary, review after I've built itkFLASHImageRegistrationMethod.hxx
   // TODO: may need some additional typedefs for objects specific to FLASH method, review after ...
   /** Input typedefs for the images. */
   typedef TFixedImage                                                 FixedImageType;
@@ -183,8 +183,8 @@ public:
   itkGetModifiableObjectMacro( /* initial velocity field, initial velocity field type */ );
 
 protected:
-  FLASHImageRegistrationMethodv4();
-  virtual ~FLASHImageRegistrationMethodv4();
+  FLASHImageRegistrationMethod();
+  virtual ~FLASHImageRegistrationMethod();
   virtual void PrintSelf( std::ostream & os, Indent indent ) const ITK_OVERRIDE;
 
   /** Perform the registration. */
@@ -282,7 +282,7 @@ private:
 } // end namespace itk
 
 #ifndef ITK_MANUAL_INSTANTIATION
-#include "itkFLASHImageRegistrationMethodv4.hxx"
+#include "itkFLASHImageRegistrationMethod.hxx"
 #endif
 
 #endif

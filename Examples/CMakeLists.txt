@@ -11,7 +11,7 @@ add_library(antsUtilities STATIC antsUtilities.cxx
             ANTsVersion.cxx
             ImageMathHelper.cxx ImageMathHelper2D.cxx  ImageMathHelper3D.cxx  ImageMathHelper4D.cxx
             )
-target_link_libraries(antsUtilities ${ITK_LIBRARIES} )
+target_link_libraries(antsUtilities ${ITK_LIBRARIES} ${PyCA_LIB}) # FLASH EDIT, PYCA_LIB
 install(TARGETS antsUtilities
     RUNTIME DESTINATION ${BIN_INSTALL_DIR}
     COMPONENT RUNTIME_antsUtilities
@@ -28,10 +28,10 @@ macro(STANDARD_ANTS_BUILD ANTS_FUNCTION_NAME EXTRA_LIBS)
   set_target_properties(l_${ANTS_FUNCTION_NAME} PROPERTIES
     SOVERSION ${LIBRARY_SOVERSION_INFO}  VERSION ${LIBRARY_VERSION_INFO})
   message(STATUS "${ANTS_FUNCTION_NAME} ${EXTRA_LIBS}")
-  target_link_libraries(l_${ANTS_FUNCTION_NAME} antsUtilities ${EXTRA_LIBS} )
-  configure_file( template_for_executables.cxx.in cli_${ANTS_FUNCTION_NAME}.cxx )
-  add_executable( ${ANTS_FUNCTION_NAME} cli_${ANTS_FUNCTION_NAME}.cxx )
-  target_link_libraries( ${ANTS_FUNCTION_NAME} l_${ANTS_FUNCTION_NAME} )
+  target_link_libraries(l_${ANTS_FUNCTION_NAME} antsUtilities ${EXTRA_LIBS} ${PyCA_LIB})  # FLASH EDIT, PYCA_LIB, links pyca to all
+  configure_file( template_for_executables.cxx.in cli_${ANTS_FUNCTION_NAME}.cxx )         # ants apps, perhaps a better place for this?
+  add_executable( ${ANTS_FUNCTION_NAME} cli_${ANTS_FUNCTION_NAME}.cxx )                   # parallel list to CORE_ANTS_APPS, empty everywhere
+  target_link_libraries( ${ANTS_FUNCTION_NAME} l_${ANTS_FUNCTION_NAME} )                  # except those apps which use pyca? arguments to EXTRA_LIBS
 
   install(TARGETS l_${ANTS_FUNCTION_NAME} ${ANTS_FUNCTION_NAME}
     RUNTIME DESTINATION ${BIN_INSTALL_DIR}

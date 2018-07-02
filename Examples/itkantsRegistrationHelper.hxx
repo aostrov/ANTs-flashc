@@ -531,18 +531,18 @@ RegistrationHelper<TComputeType, VImageDimension>
 template <class TComputeType, unsigned VImageDimension>
 void
 RegistrationHelper<TComputeType, VImageDimension>
-::AddFLASHTransform(RealType GradientStep, RealType regTermWeight, RealType laplaceWeight,
-                    RealType identityWeight, RealType operatorPower, unsigned int timeStep)
+::AddFLASHTransform(RealType GradientStep, RealType RegularizerTermWeight, RealType LaplacianWeight,
+                    RealType IdentityWeight, RealType OperatorOrder, unsigned int NumberOfTimeSteps)
 {
   TransformMethod init;
 
   init.m_XfrmMethod = FLASH;
   init.m_GradientStep = GradientStep;
-  init.m_NumberOfTimeSteps = timeStep;
-  init.m_RegularizerTermWeight = regTermWeight;
-  init.m_LaplacianWeight = laplaceWeight;
-  init.m_IdentityWeight = identityWeight;
-  init.m_OperatorOrder = operatorPower;
+  init.m_RegularizerTermWeight = RegularizerTermWeight;
+  init.m_LaplacianWeight = LaplacianWeight;
+  init.m_IdentityWeight = IdentityWeight;
+  init.m_OperatorOrder = OperatorOrder;
+  init.m_NumberOfTimeSteps = NumberOfTimeSteps;
   this->m_TransformMethods.push_back( init );
 }
 // END: FLASH edit
@@ -3313,7 +3313,7 @@ RegistrationHelper<TComputeType, VImageDimension>
           AllocImage<DisplacementFieldType>( virtualDomainImage, zeroVector );
         // TODO: define other FLASH required objects
 
-        typedef itk::/*TODO: FLASH registration type!*/<ImageType, ImageType,
+        typedef itk::FLASHImageRegistrationMethod<ImageType, ImageType,
           DisplacementFieldTransformType, ImageType, LabeledPointSetType> DisplacementFieldRegistrationType; // TODO: may need to be "velocity" field registration type
         typename DisplacementFieldRegistrationType::Pointer displacementFieldRegistration =
           DisplacementFieldRegistrationType::New();  // TODO: registration method must have a constructor; duh
