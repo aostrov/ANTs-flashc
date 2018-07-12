@@ -229,3 +229,36 @@ void JacobianT(FieldComplex3D& JacX,
       JacZ.data[index+2] = CDcoeff.data[index+2]*Mat.data[index+2];
     }
 }
+
+// FLASH EDIT
+// pad a a field to size
+// TODO: consider multiplying by a sinc kernel (should reduce gibbs ringing in sptial domain)
+FieldComplex3D * Pad_FieldComplex(FieldComplex3D * field, unsigned int size)
+{
+  FieldComplex3D * ret = new FieldComplex3D();
+  ret->xDim = size; ret->yDim = size; ret->zDim = size;
+  ret->data = new complex<float>[size * size * size * 3];
+  int x, y, z;
+
+  for(int i = 0; i < size * size * size * 3; i += 3)
+    {
+      z = i / (3 * field->xDim * field->yDim);
+      y = i % (3 * field->xDim * field->yDim) / (3 * field->xDim);
+      x = i % (3 * field->xDim * field->yDim) % (3 * field->xDim);
+      if (x >= field->xDim || y >= field->yDim || z >= field->zDim)
+        {
+          ret->data[i] = complex<float>(0.0, 0.0);
+          ret->data[i+1] = complex<float>(0.0, 0.0);
+          ret->data[i+2] = complex<float>(0.0, 0.0);
+        }
+      else
+        {
+          Vec3DComplex vec = field->getValSafe(x, y, z);
+          ret->data[i] = vec[0];
+          ret->data[i+1] = vec[1];
+          ret->data[i+2] = vec[2];
+        }
+    }
+  return ret;
+}
+// END: FLASH EDIT

@@ -937,8 +937,22 @@ DoRegistration(typename ParserType::Pointer & parser)
           NumberOfTimeSteps =
             parser->Convert<unsigned int>( transformOption->GetFunction( currentStage )->GetParameter( 5 ) );
           }
+        std::vector<unsigned int> fourierSizes(numberOfLevels, 32);
+        if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
+          {
+          fourierSizes =
+            parser->ConvertVector<unsigned int>( transformOption->GetFunction( currentStage )->GetParameter( 6 ) );
+          if ( fourierSizes.size() != numberOfLevels )
+            {
+            if( verbose )
+              {
+              std::cerr << "ERROR: the fourierSizes option to FLASH must be equal in length to the number of levels.  See help menu." << std::endl;
+              }
+            return EXIT_FAILURE;
+            }
+          }
         regHelper->AddFLASHTransform( learningRate, RegularizerTermWeight, LaplacianWeight,
-                                      IdentityWeight, OperatorOrder, NumberOfTimeSteps );
+                                      IdentityWeight, OperatorOrder, NumberOfTimeSteps, fourierSizes );
         }
         break;
       // END: FLASH edit

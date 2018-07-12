@@ -108,6 +108,11 @@ void JacobianT(FieldComplex3D& JacX,
 	       FieldComplex3D& JacY,
 	       FieldComplex3D& JacZ,
 	       const FieldComplex3D& CDcoeff,
-	       const FieldComplex3D& Mat);	 
+	       const FieldComplex3D& Mat);
+
+// FLASH EDIT
+// creates a new FieldComplex3D from 'field' that is padded to 'size'
+FieldComplex3D * Pad_FieldComplex(FieldComplex3D * field, unsigned int size); 
+// END: FLASH EDIT
   
 #endif // __FIELDCOMPLEX3D_H__

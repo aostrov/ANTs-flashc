@@ -104,7 +104,7 @@
 #include "antsDisplacementAndVelocityFieldRegistrationCommandIterationUpdate.h"
 
 // FLASH EDIT
-#include "itkFLASHImageRegistrationMethod.h" // TODO: need to tell cmake where this is!
+#include "itkFLASHImageRegistrationMethod.h"
 // END: FLASH EDIT
 
 namespace ants
@@ -452,11 +452,12 @@ public:
     std::vector<unsigned int> m_VelocityFieldMeshSizeAtBaseLevel;
     // FLASH edit
     // FLASH
-    RealType      m_RegularizerTermWeight;
-    RealType      m_LaplacianWeight;
-    RealType      m_IdentityWeight;
-    RealType      m_OperatorOrder;
-    unsigned int  m_NumberOfTimeSteps;
+    RealType                    m_RegularizerTermWeight;
+    RealType                    m_LaplacianWeight;
+    RealType                    m_IdentityWeight;
+    RealType                    m_OperatorOrder;
+    unsigned int                m_NumberOfTimeSteps;
+    std::vector<unsigned int>   m_FourierSizes;
     // END: FLASH edit
   };
 
@@ -636,7 +637,8 @@ public:
    * add a FLASH transform
    */
   void AddFLASHTransform(RealType GradientStep, RealType RegularizerTermWeight, RealType LaplacianWeight,
-                         RealType IdentityWeight, RealType OperatorOrder, unsigned int NumberOfTimeSteps);
+                         RealType IdentityWeight, RealType OperatorOrder, unsigned int NumberOfTimeSteps,
+                         std::vector<unsigned int> FourierSizes);
   // END: FLASH edit
 
   /**

@@ -20,6 +20,16 @@
 
 #include "itkImageRegistrationMethodv4.h"
 
+#include "FftOper.h"
+#include "FieldComplex3D.h"
+#include "ITKFileIO.h"
+#include "IOpers.h"
+#include "FOpers.h"
+#include "IFOpers.h"
+#include "HFOpers.h"
+#include "Reduction.h"
+#include "FluidKernelFFT.h"
+
 namespace itk
 {
 
@@ -69,7 +79,7 @@ class ITK_TEMPLATE_EXPORT FLASHImageRegistrationMethod
 {
 public:
   /** Standard class typedefs. */
-  typedef FLASHImageRegistrationMethod                                          Self;
+  typedef FLASHImageRegistrationMethod                                            Self;
   typedef ImageRegistrationMethodv4<TFixedImage, TMovingImage, TOutputTransform,
                                                        TVirtualImage, TPointSet>  Superclass;
   typedef SmartPointer<Self>                                                      Pointer;
@@ -164,23 +174,9 @@ public:
   itkSetMacro( DownsampleImagesForMetricDerivatives, bool );
   itkGetConstMacro( DownsampleImagesForMetricDerivatives, bool );
 
-  /**
-   * Set/Get the Gaussian smoothing variance for the update field.
-   * Default = 1.75.
-   */
-  itkSetMacro( GaussianSmoothingVarianceForTheUpdateField, RealType );
-  itkGetConstReferenceMacro( GaussianSmoothingVarianceForTheUpdateField, RealType );
-
-  /**
-   * Set/Get the Gaussian smoothing variance for the total field.
-   * Default = 0.5.
-   */
-  itkSetMacro( GaussianSmoothingVarianceForTheTotalField, RealType );
-  itkGetConstReferenceMacro( GaussianSmoothingVarianceForTheTotalField, RealType );
-
   /** Set/Get modifiable initial velocity to save/restore the current state of the registration. */
-  itkSetObjectMacro( /* initial velocity field, initial velocity field type */ );
-  itkGetModifiableObjectMacro( /* initial velocity field, initial velocity field type */ );
+//  itkSetObjectMacro( /* initial velocity field, initial velocity field type */ );
+//  itkGetModifiableObjectMacro( /* initial velocity field, initial velocity field type */ );
 
 protected:
   FLASHImageRegistrationMethod();
@@ -195,22 +191,35 @@ protected:
 
   virtual void InitializeRegistrationAtEachLevel( const SizeValueType ) ITK_OVERRIDE;
 
-  virtual DisplacementFieldPointer ComputeUpdateField( const FixedImagesContainerType, const PointSetsContainerType,
+  virtual FieldComplex3D * ComputeUpdateField( const FixedImagesContainerType, const PointSetsContainerType,  // FLASH EDIT, return type
     const TransformBaseType *, const MovingImagesContainerType, const PointSetsContainerType,
-    const TransformBaseType *, const FixedImageMasksContainerType, const MovingImageMasksContainerType, MeasureType & );
+    TransformBaseType *, const FixedImageMasksContainerType, const MovingImageMasksContainerType, MeasureType & );
   virtual DisplacementFieldPointer ComputeMetricGradientField( const FixedImagesContainerType,
     const PointSetsContainerType, const TransformBaseType *, const MovingImagesContainerType,
     const PointSetsContainerType, const TransformBaseType *, const FixedImageMasksContainerType,
     const MovingImageMasksContainerType, MeasureType & );
-
   virtual DisplacementFieldPointer ScaleUpdateField( const DisplacementFieldType * );
-  virtual DisplacementFieldPointer GaussianSmoothDisplacementField( const DisplacementFieldType *, const RealType );
-  virtual DisplacementFieldPointer InvertDisplacementField( const DisplacementFieldType *, const DisplacementFieldType * = ITK_NULLPTR );
+
+  // FLASH EDIT
+  Image3D * itkToPycaImage(int, int, int, TMovingImage *);
+  void EulerStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *, RealType);
+  void RungeKuttaStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *,
+                      FieldComplex3D *, FieldComplex3D *, RealType);
+  void AdvectionStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *,
+                     FieldComplex3D *, FieldComplex3D *, FieldComplex3D *,
+                     RealType);
+  void AdjointStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *,
+                   FieldComplex3D *, FieldComplex3D *,
+                   RealType);
+  void ad(FieldComplex3D &, const FieldComplex3D &, const FieldComplex3D &);
+  void adTranspose(FieldComplex3D &, const FieldComplex3D &, const FieldComplex3D &);
+  void ForwardIntegration();
+  void BackwardIntegration();
+  // END: FLASH EDIT
   
-  // TODO: add FLASH specific member variables
   RealType                                                        m_LearningRate;
 
-  OutputTransformPointer                                          m_MovingToMiddleTransform;
+  OutputTransformPointer                                          m_completeTransform;
 
   RealType                                                        m_ConvergenceThreshold;
   unsigned int                                                    m_ConvergenceWindowSize;
@@ -225,59 +234,111 @@ protected:
   RealType                                                        m_IdentityWeight;
   RealType                                                        m_OperatorOrder;
   unsigned int                                                    m_NumberOfTimeSteps;
+  RealType                                                        m_TimeStepSize;
+  std::vector<unsigned int>                                       m_FourierSizes;
+  bool                                                            m_DoRungeKuttaForIntegration;
 
+  Image3D *                                                       m_I0;
+  Image3D *                                                       m_I1;
+
+  FieldComplex3D *                                                m_v0;
+  FieldComplex3D *                                                m_gradv;
+  FieldComplex3D *                                                m_imMatchGradient;
+  FieldComplex3D *                                                m_fwdgradvfft;
+  FieldComplex3D *                                                m_JacX;
+  FieldComplex3D *                                                m_JacY;
+  FieldComplex3D *                                                m_JacZ;
+  FieldComplex3D *                                                m_adScratch1;
+  FieldComplex3D *                                                m_adScratch2;
+  FieldComplex3D *                                                m_scratch1;
+  FieldComplex3D *                                                m_scratch2;
+  FieldComplex3D *                                                m_scratch3;
+  FieldComplex3D **                                               m_VelocityFlowField;
+
+  Field3D *                                                       m_v0Spatial;
+  Field3D *                                                       m_scratchV1;
+  Field3D *                                                       m_scratchV2;
+  Field3D *                                                       m_phiinv;
+  Field3D *                                                       m_identity;
+
+  float *                                                         idxf;
+  float *                                                         idyf;
+  float *                                                         idzf;
+
+  Image3D *                                                       m_deformIm;
+  Image3D *                                                       m_splatI;
+  Image3D *                                                       m_splatOnes;
+  Image3D *                                                       m_residualIm;
+
+  MemoryType                                                      m_mType;
+  FftOper *                                                       m_fftoper;
+
+public:
   // Set/Get for the FLASH specific variables
   void SetRegularizerTermWeight( RealType weight)
     {
-      this->m_RegularizerTermWeight = weight;
+      m_RegularizerTermWeight = weight;
     }
   RealType GetRegularizerTermWeight() const
     {
-      return this->m_RegularizerTermWeight;
+      return m_RegularizerTermWeight;
     }
 
   void SetLaplacianWeight( RealType weight)
     {
-      this->m_LaplacianWeight = weight;
+      m_LaplacianWeight = weight;
     }
   RealType GetLaplacianWeight() const
     {
-      return this->m_LaplacianWeight;
+      return m_LaplacianWeight;
     }
 
   void SetIdentityWeight( RealType weight)
     {
-      this->m_IdentityWeight = weight;
+      m_IdentityWeight = weight;
     }
   RealType GetIdentityWeight() const
     {
-      return this->m_IdentityWeight;
+      return m_IdentityWeight;
     }
 
   void SetOperatorOrder( RealType weight)
     {
-      this->m_OperatorOrder = weight;
+      m_OperatorOrder = weight;
     }
   RealType GetOperatorOrder() const
     {
-      return this->m_OperatorOrder;
+      return m_OperatorOrder;
     }
 
   void SetNumberOfTimeSteps( unsigned int steps)
     {
-      this->m_NumberOfTimeSteps = steps;
+      m_NumberOfTimeSteps = steps;
     }
   unsigned int GetNumberOfTimeSteps() const
     {
-      return this->m_NumberOfTimeSteps;
+      return m_NumberOfTimeSteps;
     }
+
+  void SetFourierSizes( std::vector<unsigned int> fourierSizes)
+    {
+      m_FourierSizes = fourierSizes;
+    }
+  std::vector<unsigned int> GetFourierSizes() const
+    {
+      return m_FourierSizes;
+    }
+
+  void SetCompleteTransform(OutputTransformType * completeTransform)
+  {
+    m_completeTransform = completeTransform;
+  }
+
   // END: FLASH EDIT
 
 private:
   ITK_DISALLOW_COPY_AND_ASSIGN(FLASHImageRegistrationMethod);
 
-  RealType                                                        m_GaussianSmoothingVarianceForTheUpdateField;
-  RealType                                                        m_GaussianSmoothingVarianceForTheTotalField;
 };
 } // end namespace itk
 
