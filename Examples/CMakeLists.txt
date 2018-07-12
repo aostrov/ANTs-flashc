@@ -11,7 +11,7 @@ add_library(antsUtilities STATIC antsUtilities.cxx
             ANTsVersion.cxx
             ImageMathHelper.cxx ImageMathHelper2D.cxx  ImageMathHelper3D.cxx  ImageMathHelper4D.cxx
             )
-target_link_libraries(antsUtilities ${ITK_LIBRARIES} ${PyCA_LIB}) # FLASH EDIT, PYCA_LIB
+target_link_libraries(antsUtilities ${ITK_LIBRARIES})
 install(TARGETS antsUtilities
     RUNTIME DESTINATION ${BIN_INSTALL_DIR}
     COMPONENT RUNTIME_antsUtilities
@@ -21,6 +21,18 @@ install(TARGETS antsUtilities
     COMPONENT DEVELOPMENT_antsUtilities
   )
 
+# FLASH EDIT
+include_directories("/Users/fleishmang/Development/source/ANTS_FLASH/flash")
+set(FLASH_SOURCE "/Users/fleishmang/Development/source/ANTS_FLASH/flash")
+set(FLASH_FILES
+    ${FLASH_SOURCE}/FftOper.cxx
+    ${FLASH_SOURCE}/FieldComplex3D.cxx
+    ${FLASH_SOURCE}/itkFLASHImageRegistrationMethod.hxx
+    )
+add_library(FLASH_LIB ${FLASH_FILES})
+target_link_libraries(FLASH_LIB ${ITK_LIBRARIES} ${PyCA_LIB} ${FFTWF_LIB} ${FFTWF_THREADS_LIB})
+# END: FLASH EDIT
+
 macro(STANDARD_ANTS_BUILD ANTS_FUNCTION_NAME EXTRA_LIBS)
   set( ANTS_FUNCTION_NAME ${ANTS_FUNCTION_NAME} )
 
@@ -28,10 +40,10 @@ macro(STANDARD_ANTS_BUILD ANTS_FUNCTION_NAME EXTRA_LIBS)
   set_target_properties(l_${ANTS_FUNCTION_NAME} PROPERTIES
     SOVERSION ${LIBRARY_SOVERSION_INFO}  VERSION ${LIBRARY_VERSION_INFO})
   message(STATUS "${ANTS_FUNCTION_NAME} ${EXTRA_LIBS}")
-  target_link_libraries(l_${ANTS_FUNCTION_NAME} antsUtilities ${EXTRA_LIBS} ${PyCA_LIB})  # FLASH EDIT, PYCA_LIB, links pyca to all
-  configure_file( template_for_executables.cxx.in cli_${ANTS_FUNCTION_NAME}.cxx )         # ants apps, perhaps a better place for this?
-  add_executable( ${ANTS_FUNCTION_NAME} cli_${ANTS_FUNCTION_NAME}.cxx )                   # parallel list to CORE_ANTS_APPS, empty everywhere
-  target_link_libraries( ${ANTS_FUNCTION_NAME} l_${ANTS_FUNCTION_NAME} )                  # except those apps which use pyca? arguments to EXTRA_LIBS
+  target_link_libraries(l_${ANTS_FUNCTION_NAME} antsUtilities ${EXTRA_LIBS})
+  configure_file( template_for_executables.cxx.in cli_${ANTS_FUNCTION_NAME}.cxx )
+  add_executable( ${ANTS_FUNCTION_NAME} cli_${ANTS_FUNCTION_NAME}.cxx )
+  target_link_libraries( ${ANTS_FUNCTION_NAME} l_${ANTS_FUNCTION_NAME} ${EXTRA_LIBS}) # FLASH EDIT
 
   install(TARGETS l_${ANTS_FUNCTION_NAME} ${ANTS_FUNCTION_NAME}
     RUNTIME DESTINATION ${BIN_INSTALL_DIR}
@@ -152,9 +164,26 @@ set(MORE_ANTS_APPS
     StackSlices
   )
 
+
+# FLASH EDIT
 foreach(ANTS_APP ${CORE_ANTS_APPS})
-  STANDARD_ANTS_BUILD(${ANTS_APP} "")
+  if(${ANTS_APP} STREQUAL "antsRegistration")
+    set(MY_LIBS
+        ${ITK_LIBRARIES}
+        ${PyCA_LIB}
+        FLASH_LIB
+        ${FFTWF_LIB}
+        ${FFTWF_THREADS_LIB})
+    STANDARD_ANTS_BUILD(${ANTS_APP} "${MY_LIBS}")
+  else()
+    STANDARD_ANTS_BUILD(${ANTS_APP} "")
+  endif()
 endforeach()
+# END: FLASH EDIT
+
+# foreach(ANTS_APP ${CORE_ANTS_APPS})
+#   STANDARD_ANTS_BUILD(${ANTS_APP} "")
+# endforeach()
 
 if (BUILD_ALL_ANTS_APPS)
   foreach(ANTS_APP ${MORE_ANTS_APPS})

@@ -144,6 +144,15 @@ if (ITK_USE_FFTWD OR ITK_USE_FFTWF)
   endif()
 endif()
 
+# FLASH EDIT
+option(USE_FFTWD "Use double precision fftw if found" OFF)
+option(USE_FFTWF "Use single precision fftw if found" ON)
+if (USE_FFTWD OR USE_FFTWF)
+    find_package( FFTW )
+    link_directories(${FFTW_LIBDIR})
+endif()
+# END: FLASH EDIT
+
 # These are configure time options that specify which
 # subset of tests should be run
 option(RUN_SHORT_TESTS    "Run the quick unit tests."                                   ON  )
