@@ -24,10 +24,9 @@ using namespace PyCA;
 namespace itk
 {
 
+/************************* constructor and destructor ******************************************
+************************************************************************************************/
 
-/**
- * Constructor
- */
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
 ::FLASHImageRegistrationMethod() :
@@ -37,7 +36,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   m_RegularizerTermWeight( 0.03 ),
   m_LaplacianWeight( 3.0 ),
   m_IdentityWeight( 1.0 ),
-  m_OperatorOrder( 6.0 ),
+  m_OperatorOrder( 6 ),
   m_NumberOfTimeSteps( 10 ),
   m_TimeStepSize( 1.0/10 )
 {
@@ -48,16 +47,12 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   this->m_NumberOfIterationsPerLevel[1] = 30;
   this->m_NumberOfIterationsPerLevel[2] = 40;
   this->m_FourierSizes = {32, 32, 32};
-
   this->m_v0 = ITK_NULLPTR;
   this->m_completeTransform = ITK_NULLPTR;
   this->m_mType = MEM_HOST;
 }
 
 
-/**
- * Destructor
- */
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
 ::~FLASHImageRegistrationMethod()
@@ -65,25 +60,40 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 }
 
 
-/**
- * Utility to change ITK image type to PyCA image type
- */
+/************************* primary multi-level registration loop *******************************
+************************************************************************************************/
+
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
-Image3D *
+void
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
-::itkToPycaImage(int x, int y, int z, TMovingImage * itkTypeImage)
+::GenerateData()
 {
-  Image3D * pycaTypeImage = new Image3D(x, y, z, this->m_mType);
-  std::copy(itkTypeImage->GetBufferPointer(),
-            itkTypeImage->GetBufferPointer() + x*y*z,
-            pycaTypeImage->get());
-  return pycaTypeImage;
+  this->AllocateOutputs();  // TODO: integrate code related to outputs
+
+  for( this->m_CurrentLevel = 0; this->m_CurrentLevel < this->m_NumberOfLevels; this->m_CurrentLevel++ )
+    {
+    this->InitializeRegistrationAtEachLevel( this->m_CurrentLevel );
+
+    // The base class adds the transform to be optimized at initialization.
+    // However, since this class handles its own optimization, we remove it
+    // to optimize separately.  We then add it after the optimization loop.
+
+    this->m_CompositeTransform->RemoveTransform();
+    this->StartOptimization();
+    this->m_CompositeTransform->AddTransform( this->m_OutputTransform );
+    }
+
+  // TODO: integrate code related to outputs
+  // this->m_OutputTransform->SetDisplacementField(/* \phi_{1,0} here */);
+  // this->m_OutputTransform->SetInverseDisplacementField(/* \phi_{0,1} here  */);
+
+  // this->GetTransformOutput()->Set(this->m_OutputTransform);
 }
 
 
-/**
- * Initialize registration objects for optimization at a specific level
- */
+/************************* initialization, optimization, and residual functions ****************
+************************************************************************************************/
+
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 void
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
@@ -93,51 +103,52 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   Superclass::InitializeRegistrationAtEachLevel( level );
 
   /*** create FLASH required objects ***/
-  // images from first input channel will be I0 and I1; TODO: generalize I0 and I1 to multichannel registration
-  typename TMovingImage::SizeType dims = this->m_MovingSmoothImages[level]->GetLargestPossibleRegion().GetSize();  // TODO: this line seg faults on level 1 (i.e. 2nd level) when running InitializeRegistrationAtEachLevel on it's own (i.e. without rest of method)
+  // TODO: currently, this only works for first input channel; generalize I0 and I1 to multichannel registration
+  // TODO: writing out these images reveals slight inaccuracy w.r.t. original inputs, some type conversion somewhere?
+  typename TMovingImage::SizeType dims = this->m_MovingSmoothImages[level]->GetLargestPossibleRegion().GetSize();
   this->m_I0 = this->itkToPycaImage(dims[0], dims[1], dims[2], this->m_MovingSmoothImages[level]);
   this->m_I1 = this->itkToPycaImage(dims[0], dims[1], dims[2], this->m_FixedSmoothImages[level]);
 
+  // DEBUG
+  ITKFileIO::SaveImage(*(this->m_I0), "my_Image1.mhd");
+  ITKFileIO::SaveImage(*(this->m_I1), "my_Image0.mhd");
+  // END: DEBUG
+
   // FFT operator, the differential operator/Riemannian metric kernel in the Fourier domain
   GridInfo grid = this->m_I0->grid();
-  unsigned int numFourierCoeff = this->m_FourierSizes[level];
+  int numFourierCoeff = this->m_FourierSizes[level];
   if (numFourierCoeff % 2 == 0) numFourierCoeff -= 1;
+  int numFourierCoeffZ = 1; // DEBUG, temporary for "2D" input test images, total kludge, full control over all dimension in fouriersize given to user?
   this->m_fftoper = new FftOper(this->m_LaplacianWeight, this->m_IdentityWeight, this->m_OperatorOrder,
-                                grid, numFourierCoeff, numFourierCoeff, numFourierCoeff);
+                                grid, numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
   this->m_fftoper->FourierCoefficient();
+  this->m_TimeStepSize = 1.0/this->m_NumberOfTimeSteps;
 
   // the velocity flow field in time
   this->m_VelocityFlowField = new FieldComplex3D * [this->m_NumberOfTimeSteps+1];
   for (int i = 0; i <= this->m_NumberOfTimeSteps; i++)
-    this->m_VelocityFlowField[i] = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeff);
+    this->m_VelocityFlowField[i] = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
 
   // fields to hold gradient information
-  this->m_imMatchGradient = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeff);
-  this->m_gradv = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeff);
-  this->m_fwdgradvfft = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeff);
+  this->m_imMatchGradient = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
+  this->m_gradv = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
+  this->m_fwdgradvfft = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
 
   // fields to hold Jacobian components
-  this->m_JacX = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeff);
-  this->m_JacY = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeff);
-  this->m_JacZ = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeff);
+  this->m_JacX = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
+  this->m_JacY = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
+  this->m_JacZ = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
 
   // some scratch memory to help with computations later
-  this->m_adScratch1 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeff);
-  this->m_adScratch2 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeff);
-  this->m_scratch1 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeff);
-  this->m_scratch2 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeff);
-  this->m_scratch3 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeff);
+  this->m_adScratch1 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
+  this->m_adScratch2 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
+  this->m_scratch1 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
+  this->m_scratch2 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
+  this->m_scratch3 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
 
   // some scratch memory in the spatial domain
-  // TODO: spatial domain objects maybe initialized outside of this function? Just once for all scales?
-  this->m_v0Spatial = new Field3D(grid, this->m_mType);
   this->m_scratchV1 = new Field3D(grid, this->m_mType);
-  this->m_scratchV2 = new Field3D(grid, this->m_mType);
   this->m_phiinv = new Field3D(grid, this->m_mType);
-  this->m_deformIm = new Image3D(grid, this->m_mType);
-  this->m_splatI = new Image3D(grid, this->m_mType);
-  this->m_splatOnes = new Image3D(grid, this->m_mType);
-  this->m_residualIm = new Image3D(grid, this->m_mType);
 
   // the identity field in the Fourier domain
   this->m_identity = new Field3D(grid, this->m_mType);
@@ -154,12 +165,12 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     if( this->m_completeTransform.IsNull() || !this->m_v0 )
       {
       // Initialize complex field for initial velocity and a completeTransform object
-      this->m_v0 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeff);
+      this->m_v0 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
       this->m_completeTransform = OutputTransformType::New();
       }
     else
       {
-      // TODO: should probably double check that m_v0 is initialized (need to update this code in state restoration)
+      // TODO: should probably double check that m_v0 is initialized (also need to update code in state restoration one layer up)
       if( this->m_completeTransform->GetInverseDisplacementField() )
         {
         itkDebugMacro( "FLASH registration is initialized by restoring the state.");
@@ -168,7 +179,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
         }
       else
         {
-        itkExceptionMacro( "Invalid state restoration." )
+        itkExceptionMacro( "Invalid state restoration." );
         }
       }
     }
@@ -179,14 +190,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       this->m_TransformParametersAdaptorsPerLevel[level]->SetTransform( this->m_completeTransform );
       this->m_TransformParametersAdaptorsPerLevel[level]->AdaptTransformParameters();
       }
-    this->m_v0 = Pad_FieldComplex( this->m_v0, numFourierCoeff );
+    this->m_v0 = Pad_FieldComplex( this->m_v0, numFourierCoeff ); // TODO DEBUG: needs to be modified to accommodate "2D" test images
     }
 }
 
 
-/*
- * Start the optimization at each level.  We just do a basic gradient descent operation.
- */
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 void
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
@@ -200,45 +208,62 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 
   // get initial fixed transform if there is one
   InitialTransformType * fixedInitialTransform = const_cast<InitialTransformType*>( this->GetFixedInitialTransform() );
+  typename CompositeTransformType::Pointer fixedComposite = CompositeTransformType::New();
+  if ( fixedInitialTransform != ITK_NULLPTR )
+    {
+    fixedComposite->AddTransform( fixedInitialTransform );
+    }
+  // TODO: must add identity transform to fixedInitialTransform, but should be just once, seems to need this to be present
+  //.      to get through metric gradient computation
+  // TODO: I could also wrap all calls to interpolate fixed image in metric computation with conditional
+  //       thus preventing unnecessary attempts at interpolation every iteration
+  // DEBUG: as a test, create an identity deformation field and add to fixed transform queue
+  const DisplacementVectorType zeroVector( 0.0 );
+  typename DisplacementFieldType::Pointer tempDisplacementField = DisplacementFieldType::New();
+  tempDisplacementField->CopyInformation( virtualDomainImage );
+  tempDisplacementField->SetRegions( virtualDomainImage->GetBufferedRegion() );
+  tempDisplacementField->Allocate();
+  tempDisplacementField->FillBuffer( zeroVector );
+  OutputTransformPointer tempTransform = OutputTransformType::New();
+  tempTransform->SetInverseDisplacementField(tempDisplacementField);
+  fixedComposite->AddTransform(tempTransform->GetInverseTransform());
+  // END: DEBUG
+  fixedComposite->FlattenTransformQueue();
+  fixedComposite->SetOnlyMostRecentTransformToOptimizeOn();
 
   // Monitor the convergence
   typedef itk::Function::WindowConvergenceMonitoringFunction<RealType> ConvergenceMonitoringType;
   typename ConvergenceMonitoringType::Pointer convergenceMonitoring = ConvergenceMonitoringType::New();
   convergenceMonitoring->SetWindowSize( this->m_ConvergenceWindowSize );
-  IterationReporter reporter( this, 0, 1 );  // TODO: should maybe read about this reporter function
+  IterationReporter reporter( this, 0, 1 );
 
-  int my_iteration = 0;
-  while( this->m_CurrentIteration++ < this->m_NumberOfIterationsPerLevel[this->m_CurrentLevel] && !this->m_IsConverged )
+  while( this->m_CurrentIteration++ < this->m_NumberOfIterationsPerLevel[this->m_CurrentLevel] ) // && !this->m_IsConverged ) // DEBUG: disable auto converge for testing
     {
-    // create fixed and moving composite transform objects
-    typename CompositeTransformType::Pointer fixedComposite = CompositeTransformType::New();
-    if ( fixedInitialTransform != ITK_NULLPTR )
-      {
-      fixedComposite->AddTransform( fixedInitialTransform );
-      }
-    fixedComposite->FlattenTransformQueue();
-    // typename CompositeTransformType::Pointer movingComposite = CompositeTransformType::New();
-    // movingComposite->AddTransform( this->m_CompositeTransform );
-
     // Compute the update field
     MeasureType metricValue = 0.0;
     FieldComplex3D * smoothUpdateField = this->ComputeUpdateField(
       this->m_FixedSmoothImages, this->m_FixedPointSets, fixedComposite,
-      this->m_MovingSmoothImages, this->m_MovingPointSets, this->m_CompositeTransform, // movingComposite
+      this->m_MovingSmoothImages, this->m_MovingPointSets, this->m_CompositeTransform,
       this->m_FixedImageMasks, this->m_MovingImageMasks, metricValue );
 
-    // update initial velocity and completeTransform, scaling of update field already happened
-    // Add_FieldComplex(*(this->m_v0), *(this->m_v0), smoothUpdateField, 1);
+    // update initial velocity
+    Add_FieldComplex(*(this->m_v0), *(this->m_v0), *smoothUpdateField, -this->m_LearningRate);
 
-    // // monitor convergence information
-    // this->m_CurrentMetricValue = metricValue;
-    // convergenceMonitoring->AddEnergyValue( this->m_CurrentMetricValue );
-    // this->m_CurrentConvergenceValue = convergenceMonitoring->GetConvergenceValue();
-    // if( this->m_CurrentConvergenceValue < this->m_ConvergenceThreshold )
-    //   {
-    //   this->m_IsConverged = true;
-    //   }
-    // reporter.CompletedStep();
+    // DEBUG
+    complex<float> v0Mag = Dotprod(*(this->m_v0), *(this->m_v0));
+    std::cout << "v0 energy: " << v0Mag << "\t\t";
+    // END: DEBUG
+
+    // monitor convergence information
+    this->m_CurrentMetricValue = metricValue;
+    convergenceMonitoring->AddEnergyValue( this->m_CurrentMetricValue );
+    this->m_CurrentConvergenceValue = convergenceMonitoring->GetConvergenceValue();
+    std::cout << "metric value: " << this->m_CurrentMetricValue << "\t\tconvergence value: " << this->m_CurrentConvergenceValue << std::endl;
+    if( this->m_CurrentConvergenceValue < this->m_ConvergenceThreshold )
+      {
+      this->m_IsConverged = true;
+      }
+    reporter.CompletedStep();
     }
 }
 
@@ -253,33 +278,31 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 {
   this->ForwardIntegration();
 
-  // TODO: at least initially the virtual domain will have to be the same as full res image, i.e. all shrink factors = 1
+  // convert PyCA Field3D
+  // TODO: at least initially the virtual domain will have to be the same as full res image, i.e. all shrink factors = 1, confirmed this with print outs
+  //       solution to above: set pyca spatial domain res using the virtual domain image, that res changes with levels, all metric computations should still
+  //       be at full resolution though
+  // TODO: this object can be preallocated in initialization step to avoid reallocation every iteration
+  // TODO: these vector field conversions work properly, I have checked by writing output and inspecting
+  // TODO: I should write these vector field conversions as methods next to the itkToPycaImage method
   VirtualImageBaseConstPointer virtualDomainImage = this->GetCurrentLevelVirtualDomainImage();
   typename DisplacementFieldType::Pointer movingToFixedInverseDisplacement = DisplacementFieldType::New();
   movingToFixedInverseDisplacement->CopyInformation( virtualDomainImage );
-  movingToFixedInverseDisplacement->SetRegions( virtualDomainImage->GetBufferedRegion() );
+  movingToFixedInverseDisplacement->SetRegions( virtualDomainImage->GetRequestedRegion() );
   movingToFixedInverseDisplacement->Allocate();
-  typename DisplacementFieldType::IndexType voxelIndex;
-  DisplacementVectorType dispVector;
-  for (int x; x < 1000; x++)    // TODO: TOTALLY MADE UP NUMBERS HERE, NEED SIZE EXTENTS FOR IMAGE GRID!!!!!!!!
-  {                             // TODO: ALSO NEED TO SUBTRACT OFF IDENTITY!!!!!!
-    for (int y; y < 1000; y++)
+  ImageRegionIterator<DisplacementFieldType> ItG( movingToFixedInverseDisplacement, 
+                                                  movingToFixedInverseDisplacement->GetRequestedRegion() );
+  SizeValueType count = 0;
+  for( ItG.GoToBegin(); !ItG.IsAtEnd(); ++ItG )
     {
-      for (int z; z < 1000; z++)
-      {
-        Vec3Df dispVector_pyca = this->m_phiinv->get(x, y, z);
-        dispVector[0] = dispVector_pyca[0];
-        dispVector[1] = dispVector_pyca[1];
-        dispVector[2] = dispVector_pyca[2];
-        voxelIndex[0] = x;
-        voxelIndex[1] = y;
-        voxelIndex[2] = z;
-        movingToFixedInverseDisplacement->SetPixel(voxelIndex, dispVector);
-      }
+    DisplacementVectorType displacement;
+    Vec3Df pyca_displacement = this->m_phiinv->get(count);
+    Vec3Df pyca_identity = this->m_identity->get(count++);
+    for( SizeValueType d = 0; d < ImageDimension; d++ )
+      displacement[d] = pyca_displacement[d] - pyca_identity[d];
+    ItG.Set( displacement );
     }
-  }
   this->m_completeTransform->SetInverseDisplacementField(movingToFixedInverseDisplacement);
-
   typename CompositeTransformType::Pointer movingComposite = CompositeTransformType::New();
   movingComposite->AddTransform( movingTransform );
   movingComposite->AddTransform( this->m_completeTransform->GetInverseTransform() );
@@ -291,233 +314,84 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
                                                   movingImages, movingPointSets, movingComposite,
                                                   fixedImageMasks, movingImageMasks, value );
 
+  ImageRegionIterator<DisplacementFieldType> ItG2( metricGradientField, 
+                                                   metricGradientField->GetRequestedRegion() );
+  count = 0;
+  for( ItG2.GoToBegin(); !ItG2.IsAtEnd(); ++ItG2 )
+    {
+    DisplacementVectorType metricGradient = ItG2.Get();
+    Vec3Df pyca_metricGradient;
+    for( SizeValueType d = 0; d < ImageDimension; d++ )
+      pyca_metricGradient[d] = metricGradient[d];
+    this->m_scratchV1->set(count++, pyca_metricGradient);
+     }
 
+  // // TODO: sanity check! Try ignoring the ANTs metricGradientField and computing the residual in 
+  // //       exactly the same way as the FLASH code... see if I am still getting weird behavior after
+  // //       backward integration. I.e. implement lines 198-202 right here, before call to BackwardIntegration
+  // //       just overwrite m_scratchV1
+  // // calculate gradient
+  typename TMovingImage::SizeType dims = this->m_MovingSmoothImages[this->m_CurrentLevel]->GetLargestPossibleRegion().GetSize();
+  Image3D * deformIm = new Image3D(dims[0], dims[1], dims[2]);
+  // Image3D * residualIm = new Image3D(dims[0], dims[1], dims[2]);
+  // Image3D * c1 = new Image3D(dims[0], dims[1], dims[2]);
+  // Image3D * c2 = new Image3D(dims[0], dims[1], dims[2]);
+  // Image3D * c3 = new Image3D(dims[0], dims[1], dims[2]);
+  Opers::ApplyH(*deformIm, *(this->m_I0), *(this->m_phiinv), BACKGROUND_STRATEGY_WRAP);
+  ITKFileIO::SaveImage(*deformIm, "deformIm.mhd");
+  // Opers::Gradient(*(this->m_scratchV1), *deformIm, DIFF_CENTRAL, BC_WRAP);
+  // Opers::Sub(*residualIm, *deformIm, *(this->m_I1));
+  // ITKFileIO::SaveImage(*residualIm, "residualIm.mhd");
+  // Opers::MulMulC_I(*(this->m_scratchV1), *residualIm, -1.0);
+  // std::copy(this->m_scratchV1->getX(),
+  //           this->m_scratchV1->getX() + dims[0]*dims[1]*dims[2],
+  //           c1->get());
+  // ITKFileIO::SaveImage(*c1, "c1.mhd");
+  // std::copy(this->m_scratchV1->getY(),
+  //           this->m_scratchV1->getY() + dims[0]*dims[1]*dims[2],
+  //           c2->get());
+  // ITKFileIO::SaveImage(*c2, "c2.mhd");
+  // std::copy(this->m_scratchV1->getZ(),
+  //           this->m_scratchV1->getZ() + dims[0]*dims[1]*dims[2],
+  //           c3->get());
+  // ITKFileIO::SaveImage(*c3, "c3.mhd");
 
-  // set m_residualIm to data in metricGradientField
+  // Image3D * p1 = new Image3D(dims[0], dims[1], dims[2]);
+  // Image3D * p2 = new Image3D(dims[0], dims[1], dims[2]);
+  // Image3D * p3 = new Image3D(dims[0], dims[1], dims[2]);
+  // std::copy(this->m_phiinv->getX(),
+  //           this->m_phiinv->getX() + dims[0]*dims[1]*dims[2],
+  //           p1->get());
+  // ITKFileIO::SaveImage(*p1, "p1.mhd");
+  // std::copy(this->m_phiinv->getY(),
+  //           this->m_phiinv->getY() + dims[0]*dims[1]*dims[2],
+  //           p2->get());
+  // ITKFileIO::SaveImage(*p2, "p2.mhd");
+  // std::copy(this->m_phiinv->getZ(),
+  //           this->m_phiinv->getZ() + dims[0]*dims[1]*dims[2],
+  //           p3->get());
+  // ITKFileIO::SaveImage(*p3, "p3.mhd");
+
+  // float imEnergy;
+  // Opers::Sum2(imEnergy, *residualIm);
+  // std::cout << "residual energy: " << imEnergy << "\t\t";
 
   this->BackwardIntegration();
 
-  // // TODO: ensure correct objects are passed here
-  // AddI_FieldComplex(this->m_v0, imMatchGradient,
-  //                   1.0/(this->m_RegularizerTermWeight*this->m_RegularizerTermWeight))
+  Copy_FieldComplex(*(this->m_gradv), *(this->m_v0));
+  AddI_FieldComplex(*(this->m_gradv), *(this->m_imMatchGradient),
+                    1.0/(this->m_RegularizerTermWeight*this->m_RegularizerTermWeight));
+  return this->m_gradv;
+
+  // TODO: reimplement scaleUpdateField for PyCA fields (keep old method, for when I remove PyCA entirely)
   // DisplacementFieldPointer scaledUpdateField = this->ScaleUpdateField( updateField );
   // return scaledUpdateField;
 }
 
 
-template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
-void
-FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
-::RungeKuttaStep(FieldComplex3D * sf1, FieldComplex3D * sf2, FieldComplex3D * sf3,
-                 FieldComplex3D * vff1, FieldComplex3D * vff2, RealType dt)
-// sf: scratch field (preallocated memory to store intermediate calculations)
-// vff: velocity flow field (vff1: i-1, vff2: i)
-// dt: time step size
-{
-  // v1 = v0 - (dt/6) * (k1 + 2*k2 + 2*k3 + k4)
-  // k1
-  adTranspose(*sf1, *vff1, *vff1);
-  // partially update v1 = v0 - (dt/6)*k1
-  Copy_FieldComplex(*vff2, *vff1);
-  AddI_FieldComplex(*vff2, *sf1, -dt / 6.0);
-  // k2
-  Copy_FieldComplex(*sf3, *vff1);
-  AddI_FieldComplex(*sf3, *sf1, -0.5*dt);
-  adTranspose(*sf2, *sf3, *sf3);
-  // partially update v1 = v1 - (dt/3)*k2
-  AddI_FieldComplex(*vff2, *sf2, -dt / 3.0);
-  // k3 (stored in scratch1)
-  Copy_FieldComplex(*sf3, *vff1);
-  AddI_FieldComplex(*sf3, *sf2, -0.5*dt);
-  adTranspose(*sf1, *sf3, *sf3);
-  // partially update v1 = v1 - (dt/3)*k3
-  AddI_FieldComplex(*vff2, *sf1, -dt / 3.0);
-  // k4 (stored in scratch2)
-  Copy_FieldComplex(*sf3, *vff1);
-  AddI_FieldComplex(*sf3, *sf1, -dt);
-  adTranspose(*sf2, *sf3, *sf3);
-  // finish updating v1 = v1 - (dt/6)*k4
-  AddI_FieldComplex(*vff2, *sf2, -dt / 6.0);
-}
-
-
-template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
-void
-FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
-::EulerStep(FieldComplex3D * sf1, FieldComplex3D * vff1, FieldComplex3D * vff2, RealType dt)
-// sf: scratch field (preallocated memory to store intermediate calculations)
-// vff: velocity flow field (vff1: i-1, vff2: i)
-// dt: time step size
-{
-  // v0 = v0 - dt * adTranspose(v0, v0)
-  Copy_FieldComplex(*vff2, *vff1);
-  adTranspose(*sf1, *vff2, *vff2);
-  AddI_FieldComplex(*vff2, *sf1, -dt);
-}
-
-
-template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
-void
-FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
-::AdvectionStep(FieldComplex3D * JacX, FieldComplex3D * JacY, FieldComplex3D * JacZ,
-                FieldComplex3D * sf1, FieldComplex3D * sf2, FieldComplex3D * vff,
-                RealType dt)
-// sf: scratch field (preallocated memory to store intermediate calculations)
-// vff: velocity flow field
-// dt: time step size
-{
-  Jacobian(*JacX, *JacY, *JacZ, *(this->m_fftoper->CDcoeff), *sf1);
-  this->m_fftoper->ConvolveComplexFFT(*sf2, 0, *JacX, *JacY, *JacZ, *vff);
-  AddIMul_FieldComplex(*sf1, *sf2, *vff, -dt);
-}
-
-
-template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
-void
-FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
-::ForwardIntegration()
-{
-  // obtain velocity flow with EPDiff in Fourier domain
-  Copy_FieldComplex(*(this->m_VelocityFlowField[0]), *(this->m_v0));
-  if (this->m_DoRungeKuttaForIntegration)
-  {
-    for (int i = 1; i <= this->m_NumberOfTimeSteps; i++)
-      RungeKuttaStep(this->m_scratch1, this->m_scratch2, this->m_scratch3,
-                     this->m_VelocityFlowField[i-1], this->m_VelocityFlowField[i],
-                     this->m_TimeStepSize);
-  }
-  else
-  {
-    for (int i = 1; i <= this->m_NumberOfTimeSteps; i++)
-      EulerStep(this->m_scratch1,
-                this->m_VelocityFlowField[i-1],
-                this->m_VelocityFlowField[i],
-                this->m_TimeStepSize);
-  }
-
-  // integrate velocity flow through advection equation to obtain inverse of path endpoint
-  this->m_scratch1->initVal(complex<float>(0.0, 0.0)); // displacement field
-  for (int i = 0; i < this->m_NumberOfTimeSteps; i++)
-    AdvectionStep(this->m_JacX, this->m_JacY, this->m_JacZ,
-                  this->m_scratch1, this->m_scratch2,
-                  this->m_VelocityFlowField[i],
-                  this->m_TimeStepSize);
-
-  // obtain spatial domain transform, apply to image
-  this->m_fftoper->fourier2spatial_addH(*(this->m_phiinv),
-                                        *(this->m_scratch1),
-                                        this->idxf, this->idyf, this->idzf);
-  Opers::ApplyH(*(this->m_deformIm),
-                *(this->m_I0),
-                *(this->m_phiinv),
-                BACKGROUND_STRATEGY_WRAP);
-}
-
-
-template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
-void
-FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
-::AdjointStep(FieldComplex3D * sf1, FieldComplex3D * sf2, FieldComplex3D * vff,
-              FieldComplex3D * vadj, FieldComplex3D * dvadj,
-              RealType dt)
-// sf: scratch field (preallocated memory to store intermediate calculations)
-// vff: velocity flow field
-// vadj: adjoint image
-// dvadj: adjoint velocity
-// dt: time step size
-{
-  ad(*sf1, *vff, *dvadj);
-  adTranspose(*sf2, *dvadj, *vff);
-  for (int i = 0; i < this->m_fourierSizes[this->m_CurrentLevel] * 3 * 3; i++) // wow, per voxel per component loop!
-    dvadj->data[i] +=  dt * (vadj->data[i] - sf1->data[i] + sf2->data[i]);
-  adTranspose(*sf1, *vff, *vadj);
-  AddI_FieldComplex(*vadj, *sf1, dt);
-}
-
-
-template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
-void
-FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
-::BackwardIntegration()
-{
-  // initialize backward integration
-  Opers::Gradient(*(this->m_scratchV1),
-                  *(this->m_deformIm),
-                  DIFF_CENTRAL, BC_WRAP);
-  // residualIm should be the image matching gradient,
-  Opers::MulMulC_I(*(this->m_scratchV1),
-                   *(this->m_residualIm), -1.0);
-  this->m_fftoper->spatial2fourier(this->m_fwdgradvfft,
-                                 *(this->m_scratchV1));
-  MulI_FieldComplex(this->m_fwdgradvfft,
-                  *(this->m_fftoper->Kcoeff));
-  // integrate adjoint system entirely in Lie algebra
-  this->m_imMatchGradient->initVal(complex<float>(0.0, 0.0)); // backward to t=0
-  for (int i = this->m_NumberOfTimeSteps; i > 0; i--) // reduced adjoint jacobi fields
-    AdjointStep(this->m_scratch1, this->m_scratch2, this->m_VelocityFlowField[i],
-                this->m_fwdgradvfft, this->m_imMatchGradient,
-                this->m_TimeStepSize);
-}
-
-
-// ad operator
-// CD: central difference
-// ConvolveComplexFFT(CD*v, w)-ConvolveComplexFFT(CD*w, v))
-template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
-void
-FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
-::ad(FieldComplex3D & advw, const FieldComplex3D & v, const FieldComplex3D & w)
-{
-     Jacobian(*(this->m_JacX),
-              *(this->m_JacY),
-              *(this->m_JacZ),
-              *(this->fftoper->CDcoeff), v); 
-     this->m_fftoper->ConvolveComplexFFT(advw, 0,
-                                         *(this->m_JacX),
-                                         *(this->m_JacY),
-                                         *(this->m_JacZ), w);
-     Jacobian(*(this->m_JacX),
-              *(this->m_JacY),
-              *(this->m_JacZ),
-              *(this->fftoper->CDcoeff), w); 
-     this->m_fftoper->ConvolveComplexFFT(*(this->m_adScratch1), 0,
-                                         *(this->m_JacX),
-                                         *(this->m_JacY),
-                                         *(this->m_JacZ), v);
-     AddI_FieldComplex(advw, *(this->m_adScratch1), -1.0);
-}
-
-
-// adTranspose
-// spatial domain: K(Dv^T Lw + div(L*w x v))
-// K*(CorrComplexFFT(CD*v^T, L*w) + TensorCorr(L*w, v) * D)
-template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
-void
-FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
-::adTranspose(FieldComplex3D & adTransvw, const FieldComplex3D & v, const FieldComplex3D & w)
-{
-     Mul_FieldComplex(*(this->m_adScratch1),
-                      *(this->m_fftoper->Lcoeff), w);
-     JacobianT(*(this->m_JacX),
-               *(this->m_JacY),
-               *(this->m_JacZ),
-               *(this->m_fftoper->CDcoeff), v); 
-     this->m_fftoper->ConvolveComplexFFT(adTransvw, 1,
-                                         *(this->m_JacX),
-                                         *(this->m_JacY),
-                                         *(this->m_JacZ),
-                                         *(this->m_adScratch1));
-     this->m_fftoper->CorrComplexFFT(*(this->m_adScratch2), v,
-                                     *(this->m_adScratch1),
-                                     *(this->m_fftoper->CDcoeff));
-     AddI_FieldComplex(adTransvw, *(this->m_adScratch2), 1.0);
-     MulI_FieldComplex(adTransvw, *(this->m_fftoper->Kcoeff));
-}
-
-
-// // TODO: wow, this recomputes the downsampling of the fixed image and it's mask on every single iteration... so inefficient
-// // TODO: also, lots of code duplication here between multiMetric and singleMetric case, could be cleaned up with private subroutine
-// // TODO: eventually want to look at LCC computation to ensure it uses Summed Area Tables
+// TODO: wow, this recomputes the downsampling of the fixed image and it's mask on every single iteration... so inefficient
+// TODO: also, lots of code duplication here between multiMetric and singleMetric case, could be cleaned up with private subroutine
+// TODO: eventually want to look at LCC computation to ensure it uses Summed Area Tables
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 typename FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>::DisplacementFieldPointer
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
@@ -670,6 +544,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
         }
       else
         {
+        // DEBUG, TODO: something about fixed image interpolation causing seg fault, maybe because images are only one slice in z direction?
         typedef ResampleImageFilter<FixedImageType, FixedImageType, RealType> FixedResamplerType;
         typename FixedResamplerType::Pointer fixedResampler = FixedResamplerType::New();
         fixedResampler->SetInput( fixedImages[0] );
@@ -813,9 +688,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 }
 
 
-// // TODO: this method can remain exactly the same, should just change the terminology to reflect that it's the initial velocity
-// // TODO: field that is getting scaled. Fourier domain isn't relevant here because multiplication with a constant permutes with
-// // TODO: linear operators like the Fourier transform.
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 typename FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>::DisplacementFieldPointer
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
@@ -863,50 +735,245 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 }
 
 
-/*
- * Start the registration
- */
+// TODO: everything below here has been reviewed and based on comparison to flash code seems accurate
+//       itkToPycaImage validated with read in/write out test, works fine
+/************************* pyca to itk and vice versa functions ********************************
+************************************************************************************************/
+
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
-void
+Image3D *
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
-::GenerateData()
+::itkToPycaImage(int x, int y, int z, TMovingImage * itkTypeImage)
 {
-  this->AllocateOutputs();  // TODO: may need to double check this doesn't interfere with FLASH type things
-
-  for( this->m_CurrentLevel = 0; this->m_CurrentLevel < this->m_NumberOfLevels; this->m_CurrentLevel++ )
-    {
-    this->InitializeRegistrationAtEachLevel( this->m_CurrentLevel );
-
-    // The base class adds the transform to be optimized at initialization.
-    // However, since this class handles its own optimization, we remove it
-    // to optimize separately.  We then add it after the optimization loop.
-
-    this->m_CompositeTransform->RemoveTransform();
-
-    this->StartOptimization();
-
-    // this->m_CompositeTransform->AddTransform( this->m_OutputTransform );
-    std::cout << "Completed resample iteration: " << this->m_CurrentLevel << std::endl;
-    }
-
-  // TODO: assign appropriate transforms as output
-  // this->m_OutputTransform->SetDisplacementField(/* \phi_{1,0} here */);
-  // this->m_OutputTransform->SetInverseDisplacementField(/* \phi_{0,1} here  */);
-
-  // this->GetTransformOutput()->Set(this->m_OutputTransform);
+  Image3D * pycaTypeImage = new Image3D(x, y, z, this->m_mType);
+  std::copy(itkTypeImage->GetBufferPointer(),
+            itkTypeImage->GetBufferPointer() + x*y*z,
+            pycaTypeImage->get());
+  return pycaTypeImage;
 }
 
 
-/*
- * PrintSelf
- */
+/************************* geodesic shooting functions *****************************************
+************************************************************************************************/
+
+template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
+void
+FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
+::ForwardIntegration()
+{
+  // obtain velocity flow with EPDiff in Fourier domain
+  Copy_FieldComplex(*(this->m_VelocityFlowField[0]), *(this->m_v0));
+  if (this->m_DoRungeKuttaForIntegration)
+  {
+    for (int i = 1; i <= this->m_NumberOfTimeSteps; i++)
+      RungeKuttaStep(this->m_scratch1, this->m_scratch2, this->m_scratch3,
+                     this->m_VelocityFlowField[i-1], this->m_VelocityFlowField[i],
+                     this->m_TimeStepSize);
+  }
+  else
+  {
+    for (int i = 1; i <= this->m_NumberOfTimeSteps; i++)
+      EulerStep(this->m_scratch1,
+                this->m_VelocityFlowField[i-1],
+                this->m_VelocityFlowField[i],
+                this->m_TimeStepSize);
+  }
+
+  // integrate velocity flow through advection equation to obtain inverse of path endpoint
+  this->m_scratch1->initVal(complex<float>(0.0, 0.0)); // displacement field
+  for (int i = 0; i < this->m_NumberOfTimeSteps; i++)
+    AdvectionStep(this->m_JacX, this->m_JacY, this->m_JacZ,
+                  this->m_scratch1, this->m_scratch2,
+                  this->m_VelocityFlowField[i],
+                  this->m_TimeStepSize);
+
+  // obtain spatial domain transform, apply to image
+  this->m_fftoper->fourier2spatial_addH(*(this->m_phiinv),
+                                        *(this->m_scratch1),
+                                        this->idxf, this->idyf, this->idzf);
+}
+
+
+template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
+void
+FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
+::BackwardIntegration()
+{
+  // Opers::MulC_I(*(this->m_scratchV1), -1.0);
+  this->m_fftoper->spatial2fourier(*(this->m_fwdgradvfft),
+                                   *(this->m_scratchV1));
+  MulI_FieldComplex(*(this->m_fwdgradvfft),
+                    *(this->m_fftoper->Kcoeff));  
+  // integrate adjoint system entirely in Lie algebra
+  // TODO: off by one error? should be >= 0? probably not, each iteration initializes value at next lower time step?
+  this->m_imMatchGradient->initVal(complex<float>(0.0, 0.0)); // backward to t=0
+  for (int i = this->m_NumberOfTimeSteps; i > 0; i--) // reduced adjoint jacobi fields
+    AdjointStep(this->m_scratch1, this->m_scratch2, this->m_VelocityFlowField[i],
+                this->m_fwdgradvfft, this->m_imMatchGradient,
+                this->m_TimeStepSize);
+}
+
+
+/************************* numerical method and operator functions *****************************
+************************************************************************************************/
+
+template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
+void
+FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
+::RungeKuttaStep(FieldComplex3D * sf1, FieldComplex3D * sf2, FieldComplex3D * sf3,
+                 FieldComplex3D * vff1, FieldComplex3D * vff2, float dt)
+// sf: scratch field (preallocated memory to store intermediate calculations)
+// vff: velocity flow field (vff1: i-1, vff2: i)
+// dt: time step size
+{
+  // v1 = v0 - (dt/6) * (k1 + 2*k2 + 2*k3 + k4)
+  // k1
+  adTranspose(*sf1, *vff1, *vff1);
+  // partially update v1 = v0 - (dt/6)*k1
+  Copy_FieldComplex(*vff2, *vff1);
+  AddI_FieldComplex(*vff2, *sf1, -dt / 6.0);
+  // k2
+  Copy_FieldComplex(*sf3, *vff1);
+  AddI_FieldComplex(*sf3, *sf1, -0.5*dt);
+  adTranspose(*sf2, *sf3, *sf3);
+  // partially update v1 = v1 - (dt/3)*k2
+  AddI_FieldComplex(*vff2, *sf2, -dt / 3.0);
+  // k3 (stored in scratch1)
+  Copy_FieldComplex(*sf3, *vff1);
+  AddI_FieldComplex(*sf3, *sf2, -0.5*dt);
+  adTranspose(*sf1, *sf3, *sf3);
+  // partially update v1 = v1 - (dt/3)*k3
+  AddI_FieldComplex(*vff2, *sf1, -dt / 3.0);
+  // k4 (stored in scratch2)
+  Copy_FieldComplex(*sf3, *vff1);
+  AddI_FieldComplex(*sf3, *sf1, -dt);
+  adTranspose(*sf2, *sf3, *sf3);
+  // finish updating v1 = v1 - (dt/6)*k4
+  AddI_FieldComplex(*vff2, *sf2, -dt / 6.0);
+}
+
+
+template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
+void
+FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
+::EulerStep(FieldComplex3D * sf1, FieldComplex3D * vff1, FieldComplex3D * vff2, float dt)
+// sf: scratch field (preallocated memory to store intermediate calculations)
+// vff: velocity flow field (vff1: i-1, vff2: i)
+// dt: time step size
+{
+  // v0 = v0 - dt * adTranspose(v0, v0)
+  Copy_FieldComplex(*vff2, *vff1);
+  adTranspose(*sf1, *vff2, *vff2);
+  AddI_FieldComplex(*vff2, *sf1, -dt);
+}
+
+
+template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
+void
+FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
+::AdvectionStep(FieldComplex3D * JacX, FieldComplex3D * JacY, FieldComplex3D * JacZ,
+                FieldComplex3D * sf1, FieldComplex3D * sf2, FieldComplex3D * vff,
+                float dt)
+// sf: scratch field (preallocated memory to store intermediate calculations)
+// vff: velocity flow field
+// dt: time step size
+{
+  Jacobian(*JacX, *JacY, *JacZ, *(this->m_fftoper->CDcoeff), *sf1);
+  this->m_fftoper->ConvolveComplexFFT(*sf2, 0, *JacX, *JacY, *JacZ, *vff);
+  AddIMul_FieldComplex(*sf1, *sf2, *vff, -dt);
+}
+
+
+template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
+void
+FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
+::AdjointStep(FieldComplex3D * sf1, FieldComplex3D * sf2, FieldComplex3D * vff,
+              FieldComplex3D * vadj, FieldComplex3D * dvadj,
+              float dt)
+// sf: scratch field (preallocated memory to store intermediate calculations)
+// vff: velocity flow field
+// vadj: adjoint image
+// dvadj: adjoint velocity
+// dt: time step size
+{
+  // TODO: numFourierCoeff gets used so often, should be a global variable, currently inefficient to be in every iteration
+  //       of AdjointStep
+  int numFourierCoeff = this->m_FourierSizes[this->m_CurrentLevel];
+  if (numFourierCoeff % 2 == 0) numFourierCoeff -= 1;
+  int numFourierCoeffZ = 1;
+  ad(*sf1, *vff, *dvadj);
+  adTranspose(*sf2, *dvadj, *vff);
+  for (int i = 0; i < numFourierCoeff * numFourierCoeff * numFourierCoeffZ * 3; i++) // wow, per voxel per component loop!
+    dvadj->data[i] +=  dt * (vadj->data[i] - sf1->data[i] + sf2->data[i]);
+  adTranspose(*sf1, *vff, *vadj);
+  AddI_FieldComplex(*vadj, *sf1, dt);
+}
+
+
+// ad operator
+// CD: central difference
+// ConvolveComplexFFT(CD*v, w)-ConvolveComplexFFT(CD*w, v))
+template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
+void
+FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
+::ad(FieldComplex3D & advw, const FieldComplex3D & v, const FieldComplex3D & w)
+{
+     Jacobian(*(this->m_JacX),
+              *(this->m_JacY),
+              *(this->m_JacZ),
+              *(this->m_fftoper->CDcoeff), v); 
+     this->m_fftoper->ConvolveComplexFFT(advw, 0,
+                                         *(this->m_JacX),
+                                         *(this->m_JacY),
+                                         *(this->m_JacZ), w);
+     Jacobian(*(this->m_JacX),
+              *(this->m_JacY),
+              *(this->m_JacZ),
+              *(this->m_fftoper->CDcoeff), w); 
+     this->m_fftoper->ConvolveComplexFFT(*(this->m_adScratch1), 0,
+                                         *(this->m_JacX),
+                                         *(this->m_JacY),
+                                         *(this->m_JacZ), v);
+     AddI_FieldComplex(advw, *(this->m_adScratch1), -1.0);
+}
+
+
+// adTranspose
+// spatial domain: K(Dv^T Lw + div(L*w x v))
+// K*(CorrComplexFFT(CD*v^T, L*w) + TensorCorr(L*w, v) * D)
+template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
+void
+FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
+::adTranspose(FieldComplex3D & adTransvw, const FieldComplex3D & v, const FieldComplex3D & w)
+{
+     Mul_FieldComplex(*(this->m_adScratch1),
+                      *(this->m_fftoper->Lcoeff), w);
+     JacobianT(*(this->m_JacX),
+               *(this->m_JacY),
+               *(this->m_JacZ),
+               *(this->m_fftoper->CDcoeff), v); 
+     this->m_fftoper->ConvolveComplexFFT(adTransvw, 1,
+                                         *(this->m_JacX),
+                                         *(this->m_JacY),
+                                         *(this->m_JacZ),
+                                         *(this->m_adScratch1));
+     this->m_fftoper->CorrComplexFFT(*(this->m_adScratch2), v,
+                                     *(this->m_adScratch1),
+                                     *(this->m_fftoper->CDcoeff));
+     AddI_FieldComplex(adTransvw, *(this->m_adScratch2), 1.0);
+     MulI_FieldComplex(adTransvw, *(this->m_fftoper->Kcoeff));
+}
+
+
+/************************* miscellaneous functions *********************************************
+************************************************************************************************/
+
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 void
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
 ::PrintSelf( std::ostream & os, Indent indent ) const
 {
   Superclass::PrintSelf( os, indent );
-
   os << indent << "Number of current iterations per level: " << this->m_NumberOfIterationsPerLevel << std::endl;
   os << indent << "Learning rate: " << this->m_LearningRate << std::endl;
   os << indent << "Convergence threshold: " << this->m_ConvergenceThreshold << std::endl;

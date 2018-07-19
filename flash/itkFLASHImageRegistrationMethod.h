@@ -153,7 +153,6 @@ public:
 
   typedef Array<SizeValueType>                                        NumberOfIterationsArrayType;
 
-  // TODO: may need additional getter/setter methods for FLASH specific options, review after building hxx
   /** Set/Get the learning rate. */
   itkSetMacro( LearningRate, RealType );
   itkGetConstMacro( LearningRate, RealType );
@@ -175,8 +174,12 @@ public:
   itkGetConstMacro( DownsampleImagesForMetricDerivatives, bool );
 
   /** Set/Get modifiable initial velocity to save/restore the current state of the registration. */
-//  itkSetObjectMacro( /* initial velocity field, initial velocity field type */ );
-//  itkGetModifiableObjectMacro( /* initial velocity field, initial velocity field type */ );
+ itkSetObjectMacro( FixedToMiddleTransform, OutputTransformType );
+ itkGetModifiableObjectMacro( FixedToMiddleTransform, OutputTransformType );
+
+ /** Set/Get modifiable initial velocity to save/restore the current state of the registration. */
+ itkSetObjectMacro( MovingToMiddleTransform, OutputTransformType );
+ itkGetModifiableObjectMacro( MovingToMiddleTransform, OutputTransformType );
 
 protected:
   FLASHImageRegistrationMethod();
@@ -200,17 +203,21 @@ protected:
     const MovingImageMasksContainerType, MeasureType & );
   virtual DisplacementFieldPointer ScaleUpdateField( const DisplacementFieldType * );
 
+  // dummies for observer
+  OutputTransformPointer                                          m_MovingToMiddleTransform;
+  OutputTransformPointer                                          m_FixedToMiddleTransform;
+
   // FLASH EDIT
   Image3D * itkToPycaImage(int, int, int, TMovingImage *);
-  void EulerStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *, RealType);
+  void EulerStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *, float);
   void RungeKuttaStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *,
-                      FieldComplex3D *, FieldComplex3D *, RealType);
+                      FieldComplex3D *, FieldComplex3D *, float);
   void AdvectionStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *,
                      FieldComplex3D *, FieldComplex3D *, FieldComplex3D *,
-                     RealType);
+                     float);
   void AdjointStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *,
                    FieldComplex3D *, FieldComplex3D *,
-                   RealType);
+                   float);
   void ad(FieldComplex3D &, const FieldComplex3D &, const FieldComplex3D &);
   void adTranspose(FieldComplex3D &, const FieldComplex3D &, const FieldComplex3D &);
   void ForwardIntegration();
@@ -232,10 +239,10 @@ protected:
   RealType                                                        m_RegularizerTermWeight;
   RealType                                                        m_LaplacianWeight;
   RealType                                                        m_IdentityWeight;
-  RealType                                                        m_OperatorOrder;
-  unsigned int                                                    m_NumberOfTimeSteps;
-  RealType                                                        m_TimeStepSize;
-  std::vector<unsigned int>                                       m_FourierSizes;
+  int                                                             m_OperatorOrder;
+  int                                                             m_NumberOfTimeSteps;
+  float                                                           m_TimeStepSize;
+  std::vector<int>                                                m_FourierSizes;
   bool                                                            m_DoRungeKuttaForIntegration;
 
   Image3D *                                                       m_I0;
@@ -255,20 +262,13 @@ protected:
   FieldComplex3D *                                                m_scratch3;
   FieldComplex3D **                                               m_VelocityFlowField;
 
-  Field3D *                                                       m_v0Spatial;
   Field3D *                                                       m_scratchV1;
-  Field3D *                                                       m_scratchV2;
   Field3D *                                                       m_phiinv;
   Field3D *                                                       m_identity;
 
   float *                                                         idxf;
   float *                                                         idyf;
   float *                                                         idzf;
-
-  Image3D *                                                       m_deformIm;
-  Image3D *                                                       m_splatI;
-  Image3D *                                                       m_splatOnes;
-  Image3D *                                                       m_residualIm;
 
   MemoryType                                                      m_mType;
   FftOper *                                                       m_fftoper;
@@ -302,29 +302,29 @@ public:
       return m_IdentityWeight;
     }
 
-  void SetOperatorOrder( RealType weight)
+  void SetOperatorOrder( int weight)
     {
       m_OperatorOrder = weight;
     }
-  RealType GetOperatorOrder() const
+  int GetOperatorOrder() const
     {
       return m_OperatorOrder;
     }
 
-  void SetNumberOfTimeSteps( unsigned int steps)
+  void SetNumberOfTimeSteps( int steps)
     {
       m_NumberOfTimeSteps = steps;
     }
-  unsigned int GetNumberOfTimeSteps() const
+  int GetNumberOfTimeSteps() const
     {
       return m_NumberOfTimeSteps;
     }
 
-  void SetFourierSizes( std::vector<unsigned int> fourierSizes)
+  void SetFourierSizes( std::vector<int> fourierSizes)
     {
       m_FourierSizes = fourierSizes;
     }
-  std::vector<unsigned int> GetFourierSizes() const
+  std::vector<int> GetFourierSizes() const
     {
       return m_FourierSizes;
     }

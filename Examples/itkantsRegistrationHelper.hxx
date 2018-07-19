@@ -532,8 +532,8 @@ template <class TComputeType, unsigned VImageDimension>
 void
 RegistrationHelper<TComputeType, VImageDimension>
 ::AddFLASHTransform(RealType GradientStep, RealType RegularizerTermWeight, RealType LaplacianWeight,
-                    RealType IdentityWeight, RealType OperatorOrder, unsigned int NumberOfTimeSteps,
-                    std::vector<unsigned int> FourierSizes)
+                    RealType IdentityWeight, int OperatorOrder, int NumberOfTimeSteps,
+                    std::vector<int> FourierSizes)
 {
   TransformMethod init;
 
@@ -3473,25 +3473,25 @@ RegistrationHelper<TComputeType, VImageDimension>
         // For all Velocity field and Displacement field registration types that are not using generic
         // itkImageRegistrationMethodv4 we use following type of observer:
         //TODO: this stuff should be fine - actually this observer may need to be updated to accommodate low-dim-vel style registration
-        // typedef antsDisplacementAndVelocityFieldRegistrationCommandIterationUpdate<DisplacementFieldRegistrationType>
-        //   DisplacementFieldCommandType2;
-        // typename DisplacementFieldCommandType2::Pointer displacementFieldRegistrationObserver2 =
-        //   DisplacementFieldCommandType2::New();
-        // displacementFieldRegistrationObserver2->SetLogStream(*this->m_LogStream);
-        // displacementFieldRegistrationObserver2->SetNumberOfIterations( currentStageIterations );
-        // displacementFieldRegistrationObserver2->SetOrigFixedImage( this->m_Metrics[0].m_FixedImage );
-        // displacementFieldRegistrationObserver2->SetOrigMovingImage( this->m_Metrics[0].m_MovingImage );
-        // if( this->m_PrintSimilarityMeasureInterval != 0 )
-        //   {
-        //   displacementFieldRegistrationObserver2->SetComputeFullScaleCCInterval( this->m_PrintSimilarityMeasureInterval );
-        //   }
-        // if( this->m_WriteIntervalVolumes != 0 )
-        //   {
-        //   displacementFieldRegistrationObserver2->SetWriteInterationsOutputsInIntervals( this->m_WriteIntervalVolumes );
-        //   displacementFieldRegistrationObserver2->SetCurrentStageNumber( currentStageNumber );
-        //   }
-        // displacementFieldRegistration->AddObserver( itk::InitializeEvent(), displacementFieldRegistrationObserver2 );
-        // displacementFieldRegistration->AddObserver( itk::IterationEvent(), displacementFieldRegistrationObserver2 );
+        typedef antsDisplacementAndVelocityFieldRegistrationCommandIterationUpdate<DisplacementFieldRegistrationType>
+          DisplacementFieldCommandType2;
+        typename DisplacementFieldCommandType2::Pointer displacementFieldRegistrationObserver2 =
+          DisplacementFieldCommandType2::New();
+        displacementFieldRegistrationObserver2->SetLogStream(*this->m_LogStream);
+        displacementFieldRegistrationObserver2->SetNumberOfIterations( currentStageIterations );
+        displacementFieldRegistrationObserver2->SetOrigFixedImage( this->m_Metrics[0].m_FixedImage );
+        displacementFieldRegistrationObserver2->SetOrigMovingImage( this->m_Metrics[0].m_MovingImage );
+        if( this->m_PrintSimilarityMeasureInterval != 0 )
+          {
+          displacementFieldRegistrationObserver2->SetComputeFullScaleCCInterval( this->m_PrintSimilarityMeasureInterval );
+          }
+        if( this->m_WriteIntervalVolumes != 0 )
+          {
+          displacementFieldRegistrationObserver2->SetWriteInterationsOutputsInIntervals( this->m_WriteIntervalVolumes );
+          displacementFieldRegistrationObserver2->SetCurrentStageNumber( currentStageNumber );
+          }
+        displacementFieldRegistration->AddObserver( itk::InitializeEvent(), displacementFieldRegistrationObserver2 );
+        displacementFieldRegistration->AddObserver( itk::IterationEvent(), displacementFieldRegistrationObserver2 );
 
         try
           {
@@ -3499,7 +3499,7 @@ RegistrationHelper<TComputeType, VImageDimension>
           this->Logger() << std::endl << "*** Running FLASH registration (varianceForUpdateField = "
                          << varianceForUpdateField << ", varianceForTotalField = " << varianceForTotalField << ") ***"
                          << std::endl << std::endl;
-          // displacementFieldRegistrationObserver2->Execute( displacementFieldRegistration, itk::StartEvent() );
+          displacementFieldRegistrationObserver2->Execute( displacementFieldRegistration, itk::StartEvent() );
           displacementFieldRegistration->Update();
           }
         catch( itk::ExceptionObject & e )
