@@ -925,23 +925,23 @@ DoRegistration(typename ParserType::Pointer & parser)
           IdentityWeight =
             parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter( 3 ) );
           }
-        float OperatorOrder = 6.0;
+        int OperatorOrder = 6;
         if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
           {
           OperatorOrder =
-            parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter( 4 ) );
+            parser->Convert<int>( transformOption->GetFunction( currentStage )->GetParameter( 4 ) );
           }
-        unsigned int NumberOfTimeSteps = 10;
+        int NumberOfTimeSteps = 10;
         if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
           {
           NumberOfTimeSteps =
-            parser->Convert<unsigned int>( transformOption->GetFunction( currentStage )->GetParameter( 5 ) );
+            parser->Convert<int>( transformOption->GetFunction( currentStage )->GetParameter( 5 ) );
           }
-        std::vector<unsigned int> fourierSizes(numberOfLevels, 32);
+        std::vector<int> fourierSizes(numberOfLevels, 32);
         if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
           {
           fourierSizes =
-            parser->ConvertVector<unsigned int>( transformOption->GetFunction( currentStage )->GetParameter( 6 ) );
+            parser->ConvertVector<int>( transformOption->GetFunction( currentStage )->GetParameter( 6 ) );
           if ( fourierSizes.size() != numberOfLevels )
             {
             if( verbose )
