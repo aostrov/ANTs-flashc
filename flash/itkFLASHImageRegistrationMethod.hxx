@@ -72,12 +72,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 
   for( this->m_CurrentLevel = 0; this->m_CurrentLevel < this->m_NumberOfLevels; this->m_CurrentLevel++ )
     {
+    std::cout << "INITIALIZING AT LEVEL: " << this->m_CurrentLevel << std::endl;
     this->InitializeRegistrationAtEachLevel( this->m_CurrentLevel );
-
     // The base class adds the transform to be optimized at initialization.
     // However, since this class handles its own optimization, we remove it
     // to optimize separately.  We then add it after the optimization loop.
-
     this->m_CompositeTransform->RemoveTransform();
     this->StartOptimization();
     this->m_CompositeTransform->AddTransform( this->m_OutputTransform );
@@ -99,99 +98,91 @@ void
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
 ::InitializeRegistrationAtEachLevel( const SizeValueType level )
 {
-  std::cout << "INITIALIZING AT LEVEL: " << level << std::endl;
   Superclass::InitializeRegistrationAtEachLevel( level );
 
-  /*** create FLASH required objects ***/
-  // TODO: currently, this only works for first input channel; generalize I0 and I1 to multichannel registration
-  // TODO: writing out these images reveals slight inaccuracy w.r.t. original inputs, some type conversion somewhere?
-  typename TMovingImage::SizeType dims = this->m_MovingSmoothImages[level]->GetLargestPossibleRegion().GetSize();
-  this->m_I0 = this->itkToPycaImage(dims[0], dims[1], dims[2], this->m_MovingSmoothImages[level]);
-  this->m_I1 = this->itkToPycaImage(dims[0], dims[1], dims[2], this->m_FixedSmoothImages[level]);
+  // initialize the spatial domain dimensions
+  VirtualImageBaseConstPointer virtualDomainImage = this->GetCurrentLevelVirtualDomainImage();
+  typename TMovingImage::SizeType dims = virtualDomainImage->GetLargestPossibleRegion().GetSize();
 
-  // DEBUG
-  ITKFileIO::SaveImage(*(this->m_I0), "my_Image1.mhd");
-  ITKFileIO::SaveImage(*(this->m_I1), "my_Image0.mhd");
-  // END: DEBUG
+  // an array to hold the number of fourier coefficients per dimension for this level
+  if (this->m_FourierSizes[level] % 2 == 0) this->m_FourierSizes[level] -= 1;
+  this->m_NumFourierCoeff = new int[ImageDimension];
+  for (int i = 0; i < ImageDimension; i++)
+    this->m_NumFourierCoeff[i] = (dims[i] == 1) ? 1 : this->m_FourierSizes[level];
+  int * NFC = this->m_NumFourierCoeff; // for brevity
 
-  // FFT operator, the differential operator/Riemannian metric kernel in the Fourier domain
-  GridInfo grid = this->m_I0->grid();
-  int numFourierCoeff = this->m_FourierSizes[level];
-  if (numFourierCoeff % 2 == 0) numFourierCoeff -= 1;
-  int numFourierCoeffZ = 1; // DEBUG, temporary for "2D" input test images, total kludge, full control over all dimension in fouriersize given to user?
-  this->m_fftoper = new FftOper(this->m_LaplacianWeight, this->m_IdentityWeight, this->m_OperatorOrder,
-                                grid, numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
-  this->m_fftoper->FourierCoefficient();
-  this->m_TimeStepSize = 1.0/this->m_NumberOfTimeSteps;
-
-  // the velocity flow field in time
-  this->m_VelocityFlowField = new FieldComplex3D * [this->m_NumberOfTimeSteps+1];
-  for (int i = 0; i <= this->m_NumberOfTimeSteps; i++)
-    this->m_VelocityFlowField[i] = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
-
-  // fields to hold gradient information
-  this->m_imMatchGradient = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
-  this->m_gradv = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
-  this->m_fwdgradvfft = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
-
-  // fields to hold Jacobian components
-  this->m_JacX = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
-  this->m_JacY = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
-  this->m_JacZ = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
-
-  // some scratch memory to help with computations later
-  this->m_adScratch1 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
-  this->m_adScratch2 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
-  this->m_scratch1 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
-  this->m_scratch2 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
-  this->m_scratch3 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
-
-  // some scratch memory in the spatial domain
-  this->m_scratchV1 = new Field3D(grid, this->m_mType);
-  this->m_phiinv = new Field3D(grid, this->m_mType);
+  // initialize m_v0, grid, and fft operator; special case for level 0
+  if( level == 0 )
+    {
+    if( this->m_v0 )
+      {
+      itkDebugMacro( "FLASH registration is initialized by restoring the state.");
+      // TODO: ensure m_v0 is correctly initialized as a PyCA style FieldComplex3D
+      }
+    else
+      this->m_v0 = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+    this->m_grid = GridInfo(Vec3Di(dims[0], dims[1], dims[2]));
+    this->m_fftoper = new FftOper(this->m_LaplacianWeight,
+                                  this->m_IdentityWeight,
+                                  this->m_OperatorOrder,
+                                  this->m_grid, NFC[0], NFC[1], NFC[2]);
+    this->m_fftoper->FourierCoefficient();
+    }
+  else
+    {
+    // TODO: could implement resample in Fourier domain:
+    //       https://ccrma.stanford.edu/~jos/pasp/Linear_Interpolation_Frequency_Response.html
+    Field3D * v0Spatial = new Field3D(this->m_grid, this->m_mType);
+    this->m_fftoper->fourier2spatial(*v0Spatial, *(this->m_v0));
+    this->m_grid = GridInfo(Vec3Di(dims[0], dims[1], dims[2]));
+    Field3D * v0SpatialNew = new Field3D(this->m_grid, this->m_mType);
+    Opers::Resample(*v0SpatialNew, *v0Spatial);
+    this->m_fftoper = new FftOper(this->m_LaplacianWeight,
+                                  this->m_IdentityWeight,
+                                  this->m_OperatorOrder,
+                                  this->m_grid, NFC[0], NFC[1], NFC[2]);
+    this->m_fftoper->FourierCoefficient();
+    this->m_v0 = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+    this->m_fftoper->spatial2fourier(*(this->m_v0), *v0SpatialNew);
+    }
 
   // the identity field in the Fourier domain
-  this->m_identity = new Field3D(grid, this->m_mType);
+  this->m_identity = new Field3D(this->m_grid, this->m_mType);
   Opers::SetToIdentity(*(this->m_identity));
   this->idxf = new float[2 * this->m_fftoper->fsxFFT * this->m_fftoper->fsy * this->m_fftoper->fsz];
   this->idyf = new float[2 * this->m_fftoper->fsxFFT * this->m_fftoper->fsy * this->m_fftoper->fsz];
   this->idzf = new float[2 * this->m_fftoper->fsxFFT * this->m_fftoper->fsy * this->m_fftoper->fsz];
   this->m_fftoper->spatial2fourier_F(this->idxf, this->idyf, this->idzf, *(this->m_identity));
 
+  // the velocity flow field in time
+  this->m_TimeStepSize = 1.0/this->m_NumberOfTimeSteps;
+  this->m_VelocityFlowField = new FieldComplex3D * [this->m_NumberOfTimeSteps+1];
+  for (int i = 0; i <= this->m_NumberOfTimeSteps; i++)
+    this->m_VelocityFlowField[i] = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
 
-  if( level == 0 )
-    {
-    // If velocity and displacement objects are not initialized from a state restoration
-    if( this->m_completeTransform.IsNull() || !this->m_v0 )
-      {
-      // Initialize complex field for initial velocity and a completeTransform object
-      this->m_v0 = new FieldComplex3D(numFourierCoeff, numFourierCoeff, numFourierCoeffZ);
-      this->m_completeTransform = OutputTransformType::New();
-      }
-    else
-      {
-      // TODO: should probably double check that m_v0 is initialized (also need to update code in state restoration one layer up)
-      if( this->m_completeTransform->GetInverseDisplacementField() )
-        {
-        itkDebugMacro( "FLASH registration is initialized by restoring the state.");
-        this->m_TransformParametersAdaptorsPerLevel[0]->SetTransform( this->m_completeTransform );
-        this->m_TransformParametersAdaptorsPerLevel[0]->AdaptTransformParameters();
-        }
-      else
-        {
-        itkExceptionMacro( "Invalid state restoration." );
-        }
-      }
-    }
-  else
-    {
-    if( this->m_TransformParametersAdaptorsPerLevel[level] )
-      {
-      this->m_TransformParametersAdaptorsPerLevel[level]->SetTransform( this->m_completeTransform );
-      this->m_TransformParametersAdaptorsPerLevel[level]->AdaptTransformParameters();
-      }
-    this->m_v0 = Pad_FieldComplex( this->m_v0, numFourierCoeff ); // TODO DEBUG: needs to be modified to accommodate "2D" test images
-    }
+  // fields to hold gradient information
+  this->m_imMatchGradient = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+  this->m_gradv = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+  this->m_fwdgradvfft = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+
+  // fields to hold Jacobian components
+  this->m_JacX = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+  this->m_JacY = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+  this->m_JacZ = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+
+  // some scratch memory to help with computations later
+  this->m_adScratch1 = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+  this->m_adScratch2 = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+  this->m_scratch1 = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+  this->m_scratch2 = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+  this->m_scratch3 = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+
+  // some scratch memory in the spatial domain
+  this->m_scratchV1 = new Field3D(this->m_grid, this->m_mType);
+  this->m_phiinv = new Field3D(this->m_grid, this->m_mType);
+
+  // ITK displacement field to hold complete transform matching moving to fixed image
+  this->m_completeTransform = OutputTransformType::New();
 }
 
 
@@ -217,7 +208,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   //.      to get through metric gradient computation
   // TODO: I could also wrap all calls to interpolate fixed image in metric computation with conditional
   //       thus preventing unnecessary attempts at interpolation every iteration
-  // DEBUG: as a test, create an identity deformation field and add to fixed transform queue
   const DisplacementVectorType zeroVector( 0.0 );
   typename DisplacementFieldType::Pointer tempDisplacementField = DisplacementFieldType::New();
   tempDisplacementField->CopyInformation( virtualDomainImage );
@@ -227,7 +217,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   OutputTransformPointer tempTransform = OutputTransformType::New();
   tempTransform->SetInverseDisplacementField(tempDisplacementField);
   fixedComposite->AddTransform(tempTransform->GetInverseTransform());
-  // END: DEBUG
+
   fixedComposite->FlattenTransformQueue();
   fixedComposite->SetOnlyMostRecentTransformToOptimizeOn();
 
@@ -237,7 +227,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   convergenceMonitoring->SetWindowSize( this->m_ConvergenceWindowSize );
   IterationReporter reporter( this, 0, 1 );
 
-  while( this->m_CurrentIteration++ < this->m_NumberOfIterationsPerLevel[this->m_CurrentLevel] ) // && !this->m_IsConverged ) // DEBUG: disable auto converge for testing
+  while( this->m_CurrentIteration++ < this->m_NumberOfIterationsPerLevel[this->m_CurrentLevel] && !this->m_IsConverged )
     {
     // Compute the update field
     MeasureType metricValue = 0.0;
@@ -248,11 +238,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 
     // update initial velocity
     Add_FieldComplex(*(this->m_v0), *(this->m_v0), *smoothUpdateField, -this->m_LearningRate);
-
-    // DEBUG
-    complex<float> v0Mag = Dotprod(*(this->m_v0), *(this->m_v0));
-    std::cout << "v0 energy: " << v0Mag << "\t\t";
-    // END: DEBUG
 
     // monitor convergence information
     this->m_CurrentMetricValue = metricValue;
@@ -325,56 +310,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       pyca_metricGradient[d] = metricGradient[d];
     this->m_scratchV1->set(count++, pyca_metricGradient);
      }
-
-  // // TODO: sanity check! Try ignoring the ANTs metricGradientField and computing the residual in 
-  // //       exactly the same way as the FLASH code... see if I am still getting weird behavior after
-  // //       backward integration. I.e. implement lines 198-202 right here, before call to BackwardIntegration
-  // //       just overwrite m_scratchV1
-  // // calculate gradient
-  typename TMovingImage::SizeType dims = this->m_MovingSmoothImages[this->m_CurrentLevel]->GetLargestPossibleRegion().GetSize();
-  Image3D * deformIm = new Image3D(dims[0], dims[1], dims[2]);
-  // Image3D * residualIm = new Image3D(dims[0], dims[1], dims[2]);
-  // Image3D * c1 = new Image3D(dims[0], dims[1], dims[2]);
-  // Image3D * c2 = new Image3D(dims[0], dims[1], dims[2]);
-  // Image3D * c3 = new Image3D(dims[0], dims[1], dims[2]);
-  Opers::ApplyH(*deformIm, *(this->m_I0), *(this->m_phiinv), BACKGROUND_STRATEGY_WRAP);
-  ITKFileIO::SaveImage(*deformIm, "deformIm.mhd");
-  // Opers::Gradient(*(this->m_scratchV1), *deformIm, DIFF_CENTRAL, BC_WRAP);
-  // Opers::Sub(*residualIm, *deformIm, *(this->m_I1));
-  // ITKFileIO::SaveImage(*residualIm, "residualIm.mhd");
-  // Opers::MulMulC_I(*(this->m_scratchV1), *residualIm, -1.0);
-  // std::copy(this->m_scratchV1->getX(),
-  //           this->m_scratchV1->getX() + dims[0]*dims[1]*dims[2],
-  //           c1->get());
-  // ITKFileIO::SaveImage(*c1, "c1.mhd");
-  // std::copy(this->m_scratchV1->getY(),
-  //           this->m_scratchV1->getY() + dims[0]*dims[1]*dims[2],
-  //           c2->get());
-  // ITKFileIO::SaveImage(*c2, "c2.mhd");
-  // std::copy(this->m_scratchV1->getZ(),
-  //           this->m_scratchV1->getZ() + dims[0]*dims[1]*dims[2],
-  //           c3->get());
-  // ITKFileIO::SaveImage(*c3, "c3.mhd");
-
-  // Image3D * p1 = new Image3D(dims[0], dims[1], dims[2]);
-  // Image3D * p2 = new Image3D(dims[0], dims[1], dims[2]);
-  // Image3D * p3 = new Image3D(dims[0], dims[1], dims[2]);
-  // std::copy(this->m_phiinv->getX(),
-  //           this->m_phiinv->getX() + dims[0]*dims[1]*dims[2],
-  //           p1->get());
-  // ITKFileIO::SaveImage(*p1, "p1.mhd");
-  // std::copy(this->m_phiinv->getY(),
-  //           this->m_phiinv->getY() + dims[0]*dims[1]*dims[2],
-  //           p2->get());
-  // ITKFileIO::SaveImage(*p2, "p2.mhd");
-  // std::copy(this->m_phiinv->getZ(),
-  //           this->m_phiinv->getZ() + dims[0]*dims[1]*dims[2],
-  //           p3->get());
-  // ITKFileIO::SaveImage(*p3, "p3.mhd");
-
-  // float imEnergy;
-  // Opers::Sum2(imEnergy, *residualIm);
-  // std::cout << "residual energy: " << imEnergy << "\t\t";
 
   this->BackwardIntegration();
 
@@ -544,7 +479,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
         }
       else
         {
-        // DEBUG, TODO: something about fixed image interpolation causing seg fault, maybe because images are only one slice in z direction?
         typedef ResampleImageFilter<FixedImageType, FixedImageType, RealType> FixedResamplerType;
         typename FixedResamplerType::Pointer fixedResampler = FixedResamplerType::New();
         fixedResampler->SetInput( fixedImages[0] );
@@ -735,8 +669,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 }
 
 
-// TODO: everything below here has been reviewed and based on comparison to flash code seems accurate
-//       itkToPycaImage validated with read in/write out test, works fine
 /************************* pyca to itk and vice versa functions ********************************
 ************************************************************************************************/
 
@@ -799,13 +731,11 @@ void
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
 ::BackwardIntegration()
 {
-  // Opers::MulC_I(*(this->m_scratchV1), -1.0);
   this->m_fftoper->spatial2fourier(*(this->m_fwdgradvfft),
                                    *(this->m_scratchV1));
   MulI_FieldComplex(*(this->m_fwdgradvfft),
-                    *(this->m_fftoper->Kcoeff));  
+                    *(this->m_fftoper->Kcoeff));
   // integrate adjoint system entirely in Lie algebra
-  // TODO: off by one error? should be >= 0? probably not, each iteration initializes value at next lower time step?
   this->m_imMatchGradient->initVal(complex<float>(0.0, 0.0)); // backward to t=0
   for (int i = this->m_NumberOfTimeSteps; i > 0; i--) // reduced adjoint jacobi fields
     AdjointStep(this->m_scratch1, this->m_scratch2, this->m_VelocityFlowField[i],
@@ -896,14 +826,9 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 // dvadj: adjoint velocity
 // dt: time step size
 {
-  // TODO: numFourierCoeff gets used so often, should be a global variable, currently inefficient to be in every iteration
-  //       of AdjointStep
-  int numFourierCoeff = this->m_FourierSizes[this->m_CurrentLevel];
-  if (numFourierCoeff % 2 == 0) numFourierCoeff -= 1;
-  int numFourierCoeffZ = 1;
   ad(*sf1, *vff, *dvadj);
   adTranspose(*sf2, *dvadj, *vff);
-  for (int i = 0; i < numFourierCoeff * numFourierCoeff * numFourierCoeffZ * 3; i++) // wow, per voxel per component loop!
+  for (int i = 0; i < this->m_NumFourierCoeff[0] * this->m_NumFourierCoeff[1] * this->m_NumFourierCoeff[2] * 3; i++)
     dvadj->data[i] +=  dt * (vadj->data[i] - sf1->data[i] + sf2->data[i]);
   adTranspose(*sf1, *vff, *vadj);
   AddI_FieldComplex(*vadj, *sf1, dt);

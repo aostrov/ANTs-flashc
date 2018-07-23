@@ -243,6 +243,7 @@ protected:
   int                                                             m_NumberOfTimeSteps;
   float                                                           m_TimeStepSize;
   std::vector<int>                                                m_FourierSizes;
+  int *                                                           m_NumFourierCoeff;
   bool                                                            m_DoRungeKuttaForIntegration;
 
   Image3D *                                                       m_I0;
@@ -272,6 +273,7 @@ protected:
 
   MemoryType                                                      m_mType;
   FftOper *                                                       m_fftoper;
+  GridInfo                                                        m_grid;
 
 public:
   // Set/Get for the FLASH specific variables

@@ -3313,7 +3313,7 @@ RegistrationHelper<TComputeType, VImageDimension>
           AllocImage<DisplacementFieldType>( virtualDomainImage, zeroVector );
 
         typedef itk::FLASHImageRegistrationMethod<ImageType, ImageType,
-          DisplacementFieldTransformType, ImageType, LabeledPointSetType> DisplacementFieldRegistrationType; // TODO: prefer "velocity" field registration type (cosmetic)
+          DisplacementFieldTransformType, ImageType, LabeledPointSetType> DisplacementFieldRegistrationType;
         typename DisplacementFieldRegistrationType::Pointer displacementFieldRegistration =
           DisplacementFieldRegistrationType::New();
 
@@ -3510,21 +3510,21 @@ RegistrationHelper<TComputeType, VImageDimension>
 
         // TODO: I haven't updated the code below this point at all
         // Add calculated internal transforms to the registration state
-        // if( this->m_RegistrationState.IsNull() )
-        //   {
-        //   this->m_RegistrationState = CompositeTransformType::New();
-        //   }
-        // this->m_RegistrationState->ClearTransformQueue();
-        // this->m_RegistrationState->AddTransform( this->m_CompositeTransform );
-        // // TODO: don't need two transform types here
-        // this->m_RegistrationState->AddTransform( displacementFieldRegistration->GetModifiableFixedToMiddleTransform() );
-        // this->m_RegistrationState->AddTransform( displacementFieldRegistration->GetModifiableMovingToMiddleTransform() );
-        // this->m_RegistrationState->FlattenTransformQueue();
+        if( this->m_RegistrationState.IsNull() )
+          {
+          this->m_RegistrationState = CompositeTransformType::New();
+          }
+        this->m_RegistrationState->ClearTransformQueue();
+        this->m_RegistrationState->AddTransform( this->m_CompositeTransform );
+        // TODO: don't need two transform types here
+        this->m_RegistrationState->AddTransform( displacementFieldRegistration->GetModifiableFixedToMiddleTransform() );
+        this->m_RegistrationState->AddTransform( displacementFieldRegistration->GetModifiableMovingToMiddleTransform() );
+        this->m_RegistrationState->FlattenTransformQueue();
 
-        // // Add calculated transform to the composite transform
-        // // TODO: seems like outputDisplacementFieldTransform was modified by displacementFieldRegistration by reference
-        // this->m_CompositeTransform->AddTransform( outputDisplacementFieldTransform );
-        // this->m_AllPreviousTransformsAreLinear = false;
+        // Add calculated transform to the composite transform
+        // TODO: seems like outputDisplacementFieldTransform was modified by displacementFieldRegistration by reference
+        this->m_CompositeTransform->AddTransform( outputDisplacementFieldTransform );
+        this->m_AllPreviousTransformsAreLinear = false;
         }
         break;
       // END: FLASH edit
