@@ -256,6 +256,9 @@ public:
       // copy FixedToMiddleTransform
       typename DisplacementFieldDuplicatorType::Pointer FixedDisplacementDuplicator =
         DisplacementFieldDuplicatorType::New();
+      // DEBUG
+      std::cout << "FIRST REFERENCE TO FIXED TO MIDDLE IN OBSERVER!" << std::endl;
+      // END: DEBUG
       FixedDisplacementDuplicator->SetInputImage( const_cast<DisplacementFieldTransformType *>( filter->
                                                                                                 GetFixedToMiddleTransform(
                                                                                                   ) )->

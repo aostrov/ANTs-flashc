@@ -3411,7 +3411,6 @@ RegistrationHelper<TComputeType, VImageDimension>
             typename DisplacementFieldTransformType::Pointer completeTransform =
               dynamic_cast<DisplacementFieldTransformType *>( endTransform.GetPointer() );
 
-            // TODO: again, will just need one thing here
             if( completeTransform.IsNotNull() && completeTransform->GetInverseDisplacementField() )
               {
               this->Logger() << "Current FLASH complete transform is directly initialized from the previous stage." << std::endl;
@@ -3440,7 +3439,7 @@ RegistrationHelper<TComputeType, VImageDimension>
           {
           displacementFieldRegistration->SetFixedInitialTransform( this->m_FixedInitialTransform );
           }
-        // TODO: probably want this to be false? I want full resolution images for comparisons - but only if CC operator is fast
+
         displacementFieldRegistration->SetDownsampleImagesForMetricDerivatives( true );
 
         displacementFieldRegistration->SetNumberOfLevels( numberOfLevels );
@@ -3508,7 +3507,6 @@ RegistrationHelper<TComputeType, VImageDimension>
           return EXIT_FAILURE;
           }
 
-        // TODO: I haven't updated the code below this point at all
         // Add calculated internal transforms to the registration state
         if( this->m_RegistrationState.IsNull() )
           {
@@ -3516,13 +3514,10 @@ RegistrationHelper<TComputeType, VImageDimension>
           }
         this->m_RegistrationState->ClearTransformQueue();
         this->m_RegistrationState->AddTransform( this->m_CompositeTransform );
-        // TODO: don't need two transform types here
-        this->m_RegistrationState->AddTransform( displacementFieldRegistration->GetModifiableFixedToMiddleTransform() );
-        this->m_RegistrationState->AddTransform( displacementFieldRegistration->GetModifiableMovingToMiddleTransform() );
+        this->m_RegistrationState->AddTransform( outputDisplacementFieldTransform );
         this->m_RegistrationState->FlattenTransformQueue();
 
         // Add calculated transform to the composite transform
-        // TODO: seems like outputDisplacementFieldTransform was modified by displacementFieldRegistration by reference
         this->m_CompositeTransform->AddTransform( outputDisplacementFieldTransform );
         this->m_AllPreviousTransformsAreLinear = false;
         }

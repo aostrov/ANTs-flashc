@@ -68,8 +68,7 @@ void
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
 ::GenerateData()
 {
-  this->AllocateOutputs();  // TODO: integrate code related to outputs
-
+  this->AllocateOutputs();
   for( this->m_CurrentLevel = 0; this->m_CurrentLevel < this->m_NumberOfLevels; this->m_CurrentLevel++ )
     {
     std::cout << "INITIALIZING AT LEVEL: " << this->m_CurrentLevel << std::endl;
@@ -81,12 +80,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     this->StartOptimization();
     this->m_CompositeTransform->AddTransform( this->m_OutputTransform );
     }
-
-  // TODO: integrate code related to outputs
-  // this->m_OutputTransform->SetDisplacementField(/* \phi_{1,0} here */);
-  // this->m_OutputTransform->SetInverseDisplacementField(/* \phi_{0,1} here  */);
-
-  // this->GetTransformOutput()->Set(this->m_OutputTransform);
+  // TODO: ask Nick about writeVelocityField boolean in antsRegistrationTemplateHeader
+  // TODO: ask Nick about writeInverse boolean in antsRegistrationTemplateHeader
+  this->m_OutputTransform->SetDisplacementField(this->m_completeTransform->GetModifiableInverseDisplacementField());
+  this->m_OutputTransform->SetInverseDisplacementField(this->m_completeTransform->GetModifiableInverseDisplacementField());
+  this->GetTransformOutput()->Set(this->m_OutputTransform);
 }
 
 
@@ -181,7 +179,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   this->m_scratchV1 = new Field3D(this->m_grid, this->m_mType);
   this->m_phiinv = new Field3D(this->m_grid, this->m_mType);
 
-  // ITK displacement field to hold complete transform matching moving to fixed image
+  // ITK displacement field and transform to hold complete transform matching moving to fixed image
+  this->m_movingToFixedInverseDisplacement = DisplacementFieldType::New();
+  this->m_movingToFixedInverseDisplacement->CopyInformation( virtualDomainImage );
+  this->m_movingToFixedInverseDisplacement->SetRegions( virtualDomainImage->GetRequestedRegion() );
+  this->m_movingToFixedInverseDisplacement->Allocate();
   this->m_completeTransform = OutputTransformType::New();
 }
 
@@ -203,23 +205,9 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   if ( fixedInitialTransform != ITK_NULLPTR )
     {
     fixedComposite->AddTransform( fixedInitialTransform );
+    // TODO: apply initial transform to all fixed domain objects (images, masks, point sets)
+    //       ctrl+f for "fixedResampler" in SyN code for examples, it's in the metric computation function
     }
-  // TODO: must add identity transform to fixedInitialTransform, but should be just once, seems to need this to be present
-  //.      to get through metric gradient computation
-  // TODO: I could also wrap all calls to interpolate fixed image in metric computation with conditional
-  //       thus preventing unnecessary attempts at interpolation every iteration
-  const DisplacementVectorType zeroVector( 0.0 );
-  typename DisplacementFieldType::Pointer tempDisplacementField = DisplacementFieldType::New();
-  tempDisplacementField->CopyInformation( virtualDomainImage );
-  tempDisplacementField->SetRegions( virtualDomainImage->GetBufferedRegion() );
-  tempDisplacementField->Allocate();
-  tempDisplacementField->FillBuffer( zeroVector );
-  OutputTransformPointer tempTransform = OutputTransformType::New();
-  tempTransform->SetInverseDisplacementField(tempDisplacementField);
-  fixedComposite->AddTransform(tempTransform->GetInverseTransform());
-
-  fixedComposite->FlattenTransformQueue();
-  fixedComposite->SetOnlyMostRecentTransformToOptimizeOn();
 
   // Monitor the convergence
   typedef itk::Function::WindowConvergenceMonitoringFunction<RealType> ConvergenceMonitoringType;
@@ -237,13 +225,12 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       this->m_FixedImageMasks, this->m_MovingImageMasks, metricValue );
 
     // update initial velocity
-    Add_FieldComplex(*(this->m_v0), *(this->m_v0), *smoothUpdateField, -this->m_LearningRate);
+    Add_FieldComplex(*(this->m_v0), *(this->m_v0), *smoothUpdateField, -1.0); // -this->m_LearningRate); already scaled in ScaleUpdateField method
 
     // monitor convergence information
     this->m_CurrentMetricValue = metricValue;
     convergenceMonitoring->AddEnergyValue( this->m_CurrentMetricValue );
     this->m_CurrentConvergenceValue = convergenceMonitoring->GetConvergenceValue();
-    std::cout << "metric value: " << this->m_CurrentMetricValue << "\t\tconvergence value: " << this->m_CurrentConvergenceValue << std::endl;
     if( this->m_CurrentConvergenceValue < this->m_ConvergenceThreshold )
       {
       this->m_IsConverged = true;
@@ -262,32 +249,9 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   MeasureType & value )
 {
   this->ForwardIntegration();
+  pycaToItkVectorField(*(this->m_movingToFixedInverseDisplacement), *(this->m_phiinv));
 
-  // convert PyCA Field3D
-  // TODO: at least initially the virtual domain will have to be the same as full res image, i.e. all shrink factors = 1, confirmed this with print outs
-  //       solution to above: set pyca spatial domain res using the virtual domain image, that res changes with levels, all metric computations should still
-  //       be at full resolution though
-  // TODO: this object can be preallocated in initialization step to avoid reallocation every iteration
-  // TODO: these vector field conversions work properly, I have checked by writing output and inspecting
-  // TODO: I should write these vector field conversions as methods next to the itkToPycaImage method
-  VirtualImageBaseConstPointer virtualDomainImage = this->GetCurrentLevelVirtualDomainImage();
-  typename DisplacementFieldType::Pointer movingToFixedInverseDisplacement = DisplacementFieldType::New();
-  movingToFixedInverseDisplacement->CopyInformation( virtualDomainImage );
-  movingToFixedInverseDisplacement->SetRegions( virtualDomainImage->GetRequestedRegion() );
-  movingToFixedInverseDisplacement->Allocate();
-  ImageRegionIterator<DisplacementFieldType> ItG( movingToFixedInverseDisplacement, 
-                                                  movingToFixedInverseDisplacement->GetRequestedRegion() );
-  SizeValueType count = 0;
-  for( ItG.GoToBegin(); !ItG.IsAtEnd(); ++ItG )
-    {
-    DisplacementVectorType displacement;
-    Vec3Df pyca_displacement = this->m_phiinv->get(count);
-    Vec3Df pyca_identity = this->m_identity->get(count++);
-    for( SizeValueType d = 0; d < ImageDimension; d++ )
-      displacement[d] = pyca_displacement[d] - pyca_identity[d];
-    ItG.Set( displacement );
-    }
-  this->m_completeTransform->SetInverseDisplacementField(movingToFixedInverseDisplacement);
+  this->m_completeTransform->SetInverseDisplacementField(this->m_movingToFixedInverseDisplacement);
   typename CompositeTransformType::Pointer movingComposite = CompositeTransformType::New();
   movingComposite->AddTransform( movingTransform );
   movingComposite->AddTransform( this->m_completeTransform->GetInverseTransform() );
@@ -299,34 +263,20 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
                                                   movingImages, movingPointSets, movingComposite,
                                                   fixedImageMasks, movingImageMasks, value );
 
-  ImageRegionIterator<DisplacementFieldType> ItG2( metricGradientField, 
-                                                   metricGradientField->GetRequestedRegion() );
-  count = 0;
-  for( ItG2.GoToBegin(); !ItG2.IsAtEnd(); ++ItG2 )
-    {
-    DisplacementVectorType metricGradient = ItG2.Get();
-    Vec3Df pyca_metricGradient;
-    for( SizeValueType d = 0; d < ImageDimension; d++ )
-      pyca_metricGradient[d] = metricGradient[d];
-    this->m_scratchV1->set(count++, pyca_metricGradient);
-     }
-
+  itkToPycaVectorField(*(this->m_scratchV1), *metricGradientField);
   this->BackwardIntegration();
 
   Copy_FieldComplex(*(this->m_gradv), *(this->m_v0));
   AddI_FieldComplex(*(this->m_gradv), *(this->m_imMatchGradient),
                     1.0/(this->m_RegularizerTermWeight*this->m_RegularizerTermWeight));
-  return this->m_gradv;
-
-  // TODO: reimplement scaleUpdateField for PyCA fields (keep old method, for when I remove PyCA entirely)
-  // DisplacementFieldPointer scaledUpdateField = this->ScaleUpdateField( updateField );
-  // return scaledUpdateField;
+  return this->ScaleUpdateField( this->m_gradv );
 }
 
 
-// TODO: wow, this recomputes the downsampling of the fixed image and it's mask on every single iteration... so inefficient
-// TODO: also, lots of code duplication here between multiMetric and singleMetric case, could be cleaned up with private subroutine
-// TODO: eventually want to look at LCC computation to ensure it uses Summed Area Tables
+// TODO: recomputes the downsampling of the fixed image and it's mask on every single iteration (artifact of computing residual in middle)
+//       unnecessary for FLASH, refactor for speed
+// TODO: also, lots of code duplication here between multiMetric and singleMetric case, could be cleaned up with private subroutines
+// TODO: look at ITK implementation of cross correlation metric, should use summed area tables, not convolution
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 typename FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>::DisplacementFieldPointer
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
@@ -347,7 +297,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
         {
         multiMetric->GetMetricQueue()[n]->SetFixedObject( fixedPointSets[n] );
         multiMetric->GetMetricQueue()[n]->SetMovingObject( movingPointSets[n] );
-        multiMetric->SetFixedTransform( const_cast<TransformBaseType *>( fixedTransform ) );
         multiMetric->SetMovingTransform( const_cast<TransformBaseType *>( movingTransform ) );
 
         dynamic_cast<PointSetMetricType *>( multiMetric->GetMetricQueue()[n].GetPointer() )->SetCalculateValueAndDerivativeInTangentSpace( true );
@@ -359,7 +308,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
           multiMetric->GetMetricQueue()[n]->SetFixedObject( fixedImages[n] );
           multiMetric->GetMetricQueue()[n]->SetMovingObject( movingImages[n] );
 
-          multiMetric->SetFixedTransform( const_cast<TransformBaseType *>( fixedTransform ) );
           multiMetric->SetMovingTransform( const_cast<TransformBaseType *>( movingTransform ) );
 
           dynamic_cast<ImageMetricType *>( multiMetric->GetMetricQueue()[n].GetPointer() )->SetFixedImageMask( fixedImageMasks[n] );
@@ -367,14 +315,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
           }
         else
           {
-          typedef ResampleImageFilter<FixedImageType, FixedImageType, RealType> FixedResamplerType;
-          typename FixedResamplerType::Pointer fixedResampler = FixedResamplerType::New();
-          fixedResampler->SetInput( fixedImages[n] );
-          fixedResampler->SetTransform( fixedTransform );
-          fixedResampler->UseReferenceImageOn();
-          fixedResampler->SetReferenceImage( virtualDomainImage );
-          fixedResampler->SetDefaultPixelValue( 0 );
-          fixedResampler->Update();
 
           typedef ResampleImageFilter<MovingImageType, MovingImageType, RealType> MovingResamplerType;
           typename MovingResamplerType::Pointer movingResampler = MovingResamplerType::New();
@@ -385,7 +325,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
           movingResampler->SetDefaultPixelValue( 0 );
           movingResampler->Update();
 
-          multiMetric->GetMetricQueue()[n]->SetFixedObject( fixedResampler->GetOutput() );
+          multiMetric->GetMetricQueue()[n]->SetFixedObject( fixedImages[n] );
           multiMetric->GetMetricQueue()[n]->SetMovingObject( movingResampler->GetOutput() );
 
           if( fixedImageMasks[n] )
@@ -394,18 +334,9 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
             typename NearestNeighborInterpolatorType::Pointer nearestNeighborInterpolator = NearestNeighborInterpolatorType::New();
             nearestNeighborInterpolator->SetInputImage( dynamic_cast<ImageMaskSpatialObjectType *>( const_cast<FixedImageMaskType *>( fixedImageMasks[n].GetPointer() ) )->GetImage() );
 
-            typedef ResampleImageFilter<FixedMaskImageType, FixedMaskImageType, RealType> FixedMaskResamplerType;
-            typename FixedMaskResamplerType::Pointer fixedMaskResampler = FixedMaskResamplerType::New();
-            fixedMaskResampler->SetInput( dynamic_cast<ImageMaskSpatialObjectType *>( const_cast<FixedImageMaskType *>( fixedImageMasks[n].GetPointer() ) )->GetImage() );
-            fixedMaskResampler->SetTransform( fixedTransform );
-            fixedMaskResampler->SetInterpolator( nearestNeighborInterpolator );
-            fixedMaskResampler->UseReferenceImageOn();
-            fixedMaskResampler->SetReferenceImage( virtualDomainImage );
-            fixedMaskResampler->SetDefaultPixelValue( 0 );
-            fixedMaskResampler->Update();
 
             typename ImageMaskSpatialObjectType::Pointer resampledFixedImageMask = ImageMaskSpatialObjectType::New();
-            resampledFixedImageMask->SetImage( fixedMaskResampler->GetOutput() );
+            resampledFixedImageMask->SetImage( dynamic_cast<ImageMaskSpatialObjectType *>( const_cast<FixedImageMaskType *>( fixedImageMasks[n].GetPointer() ) )->GetImage() );
 
             dynamic_cast<ImageMetricType *>( multiMetric->GetMetricQueue()[n].GetPointer() )->SetFixedImageMask( resampledFixedImageMask );
             }
@@ -446,7 +377,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       this->m_Metric->SetFixedObject( fixedPointSets[0] );
       this->m_Metric->SetMovingObject( movingPointSets[0] );
 
-      dynamic_cast<PointSetMetricType *>( this->m_Metric.GetPointer() )->SetFixedTransform( const_cast<TransformBaseType *>( fixedTransform ) );
       dynamic_cast<PointSetMetricType *>( this->m_Metric.GetPointer() )->SetMovingTransform( const_cast<TransformBaseType *>( movingTransform ) );
 
       dynamic_cast<PointSetMetricType *>( this->m_Metric.GetPointer() )->SetCalculateValueAndDerivativeInTangentSpace( true );
@@ -471,7 +401,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
         this->m_Metric->SetFixedObject( fixedImages[0] );
         this->m_Metric->SetMovingObject( movingImages[0] );
 
-        dynamic_cast<ImageMetricType *>( this->m_Metric.GetPointer() )->SetFixedTransform( const_cast<TransformBaseType *>( fixedTransform ) );
         dynamic_cast<ImageMetricType *>( this->m_Metric.GetPointer() )->SetMovingTransform( const_cast<TransformBaseType *>( movingTransform ) );
 
         dynamic_cast<ImageMetricType *>( this->m_Metric.GetPointer() )->SetFixedImageMask( fixedImageMasks[0] );
@@ -479,14 +408,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
         }
       else
         {
-        typedef ResampleImageFilter<FixedImageType, FixedImageType, RealType> FixedResamplerType;
-        typename FixedResamplerType::Pointer fixedResampler = FixedResamplerType::New();
-        fixedResampler->SetInput( fixedImages[0] );
-        fixedResampler->SetTransform( fixedTransform );
-        fixedResampler->UseReferenceImageOn();
-        fixedResampler->SetReferenceImage( virtualDomainImage );
-        fixedResampler->SetDefaultPixelValue( 0 );
-        fixedResampler->Update();
 
         typedef ResampleImageFilter<MovingImageType, MovingImageType, RealType> MovingResamplerType;
         typename MovingResamplerType::Pointer movingResampler = MovingResamplerType::New();
@@ -497,7 +418,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
         movingResampler->SetDefaultPixelValue( 0 );
         movingResampler->Update();
 
-        this->m_Metric->SetFixedObject( fixedResampler->GetOutput() );
+        this->m_Metric->SetFixedObject( fixedImages[0] );
         this->m_Metric->SetMovingObject( movingResampler->GetOutput() );
 
         if( fixedImageMasks[0] )
@@ -506,18 +427,8 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
           typename NearestNeighborInterpolatorType::Pointer nearestNeighborInterpolator = NearestNeighborInterpolatorType::New();
           nearestNeighborInterpolator->SetInputImage( dynamic_cast<ImageMaskSpatialObjectType *>( const_cast<FixedImageMaskType *>( fixedImageMasks[0].GetPointer() ) )->GetImage() );
 
-          typedef ResampleImageFilter<FixedMaskImageType, FixedMaskImageType, RealType> FixedMaskResamplerType;
-          typename FixedMaskResamplerType::Pointer fixedMaskResampler = FixedMaskResamplerType::New();
-          fixedMaskResampler->SetInput( dynamic_cast<ImageMaskSpatialObjectType *>( const_cast<FixedImageMaskType *>( fixedImageMasks[0].GetPointer() ) )->GetImage() );
-          fixedMaskResampler->SetTransform( fixedTransform );
-          fixedMaskResampler->SetInterpolator( nearestNeighborInterpolator );
-          fixedMaskResampler->UseReferenceImageOn();
-          fixedMaskResampler->SetReferenceImage( virtualDomainImage );
-          fixedMaskResampler->SetDefaultPixelValue( 0 );
-          fixedMaskResampler->Update();
-
           typename ImageMaskSpatialObjectType::Pointer resampledFixedImageMask = ImageMaskSpatialObjectType::New();
-          resampledFixedImageMask->SetImage( fixedMaskResampler->GetOutput() );
+          resampledFixedImageMask->SetImage( dynamic_cast<ImageMaskSpatialObjectType *>( const_cast<FixedImageMaskType *>( fixedImageMasks[0].GetPointer() ) )->GetImage() );
 
           dynamic_cast<ImageMetricType *>( this->m_Metric.GetPointer() )->SetFixedImageMask( resampledFixedImageMask );
           }
@@ -623,22 +534,29 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 
 
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
-typename FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>::DisplacementFieldPointer
+FieldComplex3D *
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
-::ScaleUpdateField( const DisplacementFieldType * updateField )
+::ScaleUpdateField( FieldComplex3D * updateField )
 {
-  typename DisplacementFieldType::SpacingType spacing = updateField->GetSpacing();
-  ImageRegionConstIterator<DisplacementFieldType> ItF( updateField, updateField->GetLargestPossibleRegion() );
+  VirtualImageBaseConstPointer virtualDomainImage = this->GetCurrentLevelVirtualDomainImage();
+  typename DisplacementFieldType::SpacingType spacing = virtualDomainImage->GetSpacing();
 
+  Vec3DComplex vector;
+  int x, y, z;
   RealType maxNorm = NumericTraits<RealType>::NonpositiveMin();
-  for( ItF.GoToBegin(); !ItF.IsAtEnd(); ++ItF )
+  int rastorSize = updateField->xDim * updateField->yDim * updateField->zDim;
+  for( int i = 0; i < rastorSize * 3; i += 3 )
     {
-    DisplacementVectorType vector = ItF.Get();
+    z = i / (3 * updateField->xDim * updateField->yDim);
+    y = i % (3 * updateField->xDim * updateField->yDim) / (3 * updateField->xDim);
+    x = i % (3 * updateField->xDim * updateField->yDim) % (3 * updateField->xDim) / 3;
+    vector = updateField->getVal(x, y, z);
 
     RealType localNorm = 0;
     for( SizeValueType d = 0; d < ImageDimension; d++ )
       {
-      localNorm += itk::Math::sqr( vector[d] / spacing[d] );
+      localNorm += std::pow(std::real(vector[d]) / spacing[d], 2);
+      localNorm += std::pow(std::imag(vector[d]) / spacing[d], 2);
       }
     localNorm = std::sqrt( localNorm );
 
@@ -654,18 +572,9 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     scale /= maxNorm;
     }
 
-  typedef Image<RealType, ImageDimension> RealImageType;
+  MulCI_FieldComplex(*updateField, scale);
 
-  typedef MultiplyImageFilter<DisplacementFieldType, RealImageType, DisplacementFieldType> MultiplierType;
-  typename MultiplierType::Pointer multiplier = MultiplierType::New();
-  multiplier->SetInput( updateField );
-  multiplier->SetConstant( scale );
-
-  typename DisplacementFieldType::Pointer scaledUpdateField = multiplier->GetOutput();
-  scaledUpdateField->Update();
-  scaledUpdateField->DisconnectPipeline();
-
-  return scaledUpdateField;
+  return updateField;
 }
 
 
@@ -682,6 +591,45 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
             itkTypeImage->GetBufferPointer() + x*y*z,
             pycaTypeImage->get());
   return pycaTypeImage;
+}
+
+
+template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
+void
+FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
+::itkToPycaVectorField(Field3D & pycaField, DisplacementFieldType & itkField)
+{
+  ImageRegionIterator<DisplacementFieldType> Iter(&itkField, (&itkField)->GetRequestedRegion());
+  SizeValueType count = 0;
+  DisplacementVectorType itkVector;
+  Vec3Df pycaVector;
+  for( Iter.GoToBegin(); !Iter.IsAtEnd(); ++Iter )
+    {
+    itkVector = Iter.Get();
+    for( SizeValueType d = 0; d < ImageDimension; d++ )
+      pycaVector[d] = itkVector[d];
+    pycaField.set(count++, pycaVector);
+    }
+}
+
+
+template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
+void
+FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
+::pycaToItkVectorField(DisplacementFieldType & itkField, Field3D & pycaField)
+{
+  ImageRegionIterator<DisplacementFieldType> Iter(&itkField, (&itkField)->GetRequestedRegion());
+  SizeValueType count = 0;
+  DisplacementVectorType itkVector;
+  Vec3Df pycaVector, pycaIdentity;
+  for( Iter.GoToBegin(); !Iter.IsAtEnd(); ++Iter )
+    {
+    pycaVector = this->m_phiinv->get(count);
+    pycaIdentity = this->m_identity->get(count++);
+    for( SizeValueType d = 0; d < ImageDimension; d++ )
+      itkVector[d] = pycaVector[d] - pycaIdentity[d];
+    Iter.Set(itkVector);
+    }
 }
 
 

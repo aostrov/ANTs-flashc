@@ -201,7 +201,7 @@ protected:
     const PointSetsContainerType, const TransformBaseType *, const MovingImagesContainerType,
     const PointSetsContainerType, const TransformBaseType *, const FixedImageMasksContainerType,
     const MovingImageMasksContainerType, MeasureType & );
-  virtual DisplacementFieldPointer ScaleUpdateField( const DisplacementFieldType * );
+  virtual FieldComplex3D * ScaleUpdateField( FieldComplex3D * );
 
   // dummies for observer
   OutputTransformPointer                                          m_MovingToMiddleTransform;
@@ -209,6 +209,8 @@ protected:
 
   // FLASH EDIT
   Image3D * itkToPycaImage(int, int, int, TMovingImage *);
+  void itkToPycaVectorField(Field3D &, DisplacementFieldType &);
+  void pycaToItkVectorField(DisplacementFieldType &, Field3D &);
   void EulerStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *, float);
   void RungeKuttaStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *,
                       FieldComplex3D *, FieldComplex3D *, float);
@@ -274,6 +276,8 @@ protected:
   MemoryType                                                      m_mType;
   FftOper *                                                       m_fftoper;
   GridInfo                                                        m_grid;
+
+  DisplacementFieldPointer                                        m_movingToFixedInverseDisplacement;
 
 public:
   // Set/Get for the FLASH specific variables
