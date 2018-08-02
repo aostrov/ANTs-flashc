@@ -29,7 +29,7 @@ set(FLASH_FILES
     ${FLASH_SOURCE}/FieldComplex3D.cxx
     ${FLASH_SOURCE}/itkFLASHImageRegistrationMethod.hxx
     )
-add_library(FLASH_LIB ${FLASH_FILES})
+add_library(FLASH_LIB STATIC ${FLASH_FILES})
 target_link_libraries(FLASH_LIB ${ITK_LIBRARIES} ${PyCA_LIB} ${FFTWF_LIB} ${FFTWF_THREADS_LIB})
 # END: FLASH EDIT
 
@@ -43,7 +43,7 @@ macro(STANDARD_ANTS_BUILD ANTS_FUNCTION_NAME EXTRA_LIBS)
   target_link_libraries(l_${ANTS_FUNCTION_NAME} antsUtilities ${EXTRA_LIBS})
   configure_file( template_for_executables.cxx.in cli_${ANTS_FUNCTION_NAME}.cxx )
   add_executable( ${ANTS_FUNCTION_NAME} cli_${ANTS_FUNCTION_NAME}.cxx )
-  target_link_libraries( ${ANTS_FUNCTION_NAME} l_${ANTS_FUNCTION_NAME} ${EXTRA_LIBS}) # FLASH EDIT
+  target_link_libraries( ${ANTS_FUNCTION_NAME} l_${ANTS_FUNCTION_NAME} )
 
   install(TARGETS l_${ANTS_FUNCTION_NAME} ${ANTS_FUNCTION_NAME}
     RUNTIME DESTINATION ${BIN_INSTALL_DIR}
@@ -168,12 +168,7 @@ set(MORE_ANTS_APPS
 # FLASH EDIT
 foreach(ANTS_APP ${CORE_ANTS_APPS})
   if(${ANTS_APP} STREQUAL "antsRegistration")
-    set(MY_LIBS
-        ${ITK_LIBRARIES}
-        ${PyCA_LIB}
-        FLASH_LIB
-        ${FFTWF_LIB}
-        ${FFTWF_THREADS_LIB})
+    set(MY_LIBS FLASH_LIB)
     STANDARD_ANTS_BUILD(${ANTS_APP} "${MY_LIBS}")
   else()
     STANDARD_ANTS_BUILD(${ANTS_APP} "")
