@@ -225,7 +225,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       this->m_FixedImageMasks, this->m_MovingImageMasks, metricValue );
 
     // update initial velocity
-    Add_FieldComplex(*(this->m_v0), *(this->m_v0), *smoothUpdateField, -1.0); // -this->m_LearningRate); already scaled in ScaleUpdateField method
+    AddI_FieldComplex(*(this->m_v0), *smoothUpdateField, -1.0);
 
     // monitor convergence information
     this->m_CurrentMetricValue = metricValue;
