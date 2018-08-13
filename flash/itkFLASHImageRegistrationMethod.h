@@ -196,11 +196,11 @@ protected:
 
   virtual FieldComplex3D * ComputeUpdateField( const FixedImagesContainerType, const PointSetsContainerType,  // FLASH EDIT, return type
     const TransformBaseType *, const MovingImagesContainerType, const PointSetsContainerType,
-    TransformBaseType *, const FixedImageMasksContainerType, const MovingImageMasksContainerType, MeasureType & );
+    TransformBaseType *, const FixedImageMasksContainerType, const MovingImageMasksContainerType, MeasureType &, MeasureType & );
   virtual DisplacementFieldPointer ComputeMetricGradientField( const FixedImagesContainerType,
     const PointSetsContainerType, const TransformBaseType *, const MovingImagesContainerType,
     const PointSetsContainerType, const TransformBaseType *, const FixedImageMasksContainerType,
-    const MovingImageMasksContainerType, MeasureType & );
+    const MovingImageMasksContainerType, MeasureType &);
   virtual FieldComplex3D * ScaleUpdateField( FieldComplex3D * );
 
   // dummies for observer
@@ -227,6 +227,8 @@ protected:
   // END: FLASH EDIT
   
   RealType                                                        m_LearningRate;
+  RealType                                                        m_InitialLearningRate;
+  RealType                                                        m_MaxPower;
 
   OutputTransformPointer                                          m_completeTransform;
 
@@ -252,7 +254,9 @@ protected:
   Image3D *                                                       m_I1;
 
   FieldComplex3D *                                                m_v0;
+  FieldComplex3D *                                                m_previousV0;
   FieldComplex3D *                                                m_gradv;
+  FieldComplex3D *                                                m_previousGradV;
   FieldComplex3D *                                                m_imMatchGradient;
   FieldComplex3D *                                                m_fwdgradvfft;
   FieldComplex3D *                                                m_JacX;

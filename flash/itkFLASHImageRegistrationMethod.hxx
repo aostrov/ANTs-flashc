@@ -118,13 +118,16 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       // TODO: ensure m_v0 is correctly initialized as a PyCA style FieldComplex3D
       }
     else
+      {
       this->m_v0 = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+      }
     this->m_grid = GridInfo(Vec3Di(dims[0], dims[1], dims[2]));
     this->m_fftoper = new FftOper(this->m_LaplacianWeight,
                                   this->m_IdentityWeight,
                                   this->m_OperatorOrder,
                                   this->m_grid, NFC[0], NFC[1], NFC[2]);
     this->m_fftoper->FourierCoefficient();
+    this->m_InitialLearningRate = this->m_LearningRate;
     }
   else
     {
@@ -142,6 +145,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     this->m_fftoper->FourierCoefficient();
     this->m_v0 = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
     this->m_fftoper->spatial2fourier(*(this->m_v0), *v0SpatialNew);
+    this->m_LearningRate = this->m_InitialLearningRate;
     }
 
   // the identity field in the Fourier domain
@@ -159,8 +163,10 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     this->m_VelocityFlowField[i] = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
 
   // fields to hold gradient information
+  this->m_previousV0 = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
   this->m_imMatchGradient = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
   this->m_gradv = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
+  this->m_previousGradV = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
   this->m_fwdgradvfft = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
 
   // fields to hold Jacobian components
@@ -215,17 +221,17 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   convergenceMonitoring->SetWindowSize( this->m_ConvergenceWindowSize );
   IterationReporter reporter( this, 0, 1 );
 
+  MeasureType previousMetricValue(1e100), metricValue(0.0);
   while( this->m_CurrentIteration++ < this->m_NumberOfIterationsPerLevel[this->m_CurrentLevel] && !this->m_IsConverged )
     {
     // Compute the update field
-    MeasureType metricValue = 0.0;
     FieldComplex3D * smoothUpdateField = this->ComputeUpdateField(
       this->m_FixedSmoothImages, this->m_FixedPointSets, fixedComposite,
       this->m_MovingSmoothImages, this->m_MovingPointSets, this->m_CompositeTransform,
-      this->m_FixedImageMasks, this->m_MovingImageMasks, metricValue );
+      this->m_FixedImageMasks, this->m_MovingImageMasks, metricValue, previousMetricValue );
 
     // update initial velocity
-    Add_FieldComplex(*(this->m_v0), *(this->m_v0), *smoothUpdateField, -1.0); // -this->m_LearningRate); already scaled in ScaleUpdateField method
+    AddI_FieldComplex(*(this->m_v0), *smoothUpdateField, -1.0);
 
     // monitor convergence information
     this->m_CurrentMetricValue = metricValue;
@@ -246,7 +252,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 ::ComputeUpdateField( const FixedImagesContainerType fixedImages, const PointSetsContainerType fixedPointSets,
   const TransformBaseType * fixedTransform, const MovingImagesContainerType movingImages, const PointSetsContainerType movingPointSets,
   TransformBaseType * movingTransform, const FixedImageMasksContainerType fixedImageMasks, const MovingImageMasksContainerType movingImageMasks,
-  MeasureType & value )
+  MeasureType & value, MeasureType & previousValue )
 {
   this->ForwardIntegration();
   pycaToItkVectorField(*(this->m_movingToFixedInverseDisplacement), *(this->m_phiinv));
@@ -263,13 +269,31 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
                                                   movingImages, movingPointSets, movingComposite,
                                                   fixedImageMasks, movingImageMasks, value );
 
-  itkToPycaVectorField(*(this->m_scratchV1), *metricGradientField);
-  this->BackwardIntegration();
+  // for Fourier space optimization, never let objective function increase
+  if (previousValue < value)
+    {
+      value = previousValue;
+      Copy_FieldComplex(*(this->m_v0), *(this->m_previousV0));
+      this->m_LearningRate *= 0.8;
+      MulCI_FieldComplex(*(this->m_previousGradV), 0.8);
+      return this->m_previousGradV;
+    }
+  else
+    {
+      itkToPycaVectorField(*(this->m_scratchV1), *metricGradientField);
+      this->BackwardIntegration();
 
-  Copy_FieldComplex(*(this->m_gradv), *(this->m_v0));
-  AddI_FieldComplex(*(this->m_gradv), *(this->m_imMatchGradient),
-                    1.0/(this->m_RegularizerTermWeight*this->m_RegularizerTermWeight));
-  return this->ScaleUpdateField( this->m_gradv );
+      Copy_FieldComplex(*(this->m_gradv), *(this->m_v0));
+      AddI_FieldComplex(*(this->m_gradv), *(this->m_imMatchGradient),
+                        1.0/(this->m_RegularizerTermWeight*this->m_RegularizerTermWeight));
+      this->m_gradv = this->ScaleUpdateField( this->m_gradv );
+
+      previousValue = value;
+      Copy_FieldComplex(*(this->m_previousV0), *(this->m_v0));
+      Copy_FieldComplex(*(this->m_previousGradV), *(this->m_gradv));
+
+      return this->m_gradv;
+    }
 }
 
 
