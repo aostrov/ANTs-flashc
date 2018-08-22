@@ -101,6 +101,8 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   // initialize the spatial domain dimensions
   VirtualImageBaseConstPointer virtualDomainImage = this->GetCurrentLevelVirtualDomainImage();
   typename TMovingImage::SizeType dims = virtualDomainImage->GetLargestPossibleRegion().GetSize();
+  typename DisplacementFieldType::SpacingType spacing = virtualDomainImage->GetSpacing();
+  typename DisplacementFieldType::PointType origin = virtualDomainImage->GetOrigin();
 
   // an array to hold the number of fourier coefficients per dimension for this level
   if (this->m_FourierSizes[level] % 2 == 0) this->m_FourierSizes[level] -= 1;
@@ -121,7 +123,9 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       {
       this->m_v0 = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
       }
-    this->m_grid = GridInfo(Vec3Di(dims[0], dims[1], dims[2]));
+    this->m_grid = GridInfo(Vec3Di(dims[0], dims[1], dims[2]),
+                            Vec3Di(spacing[0], spacing[1], spacing[2]),
+                            Vec3Di(origin[0], origin[1], origin[2]));
     this->m_fftoper = new FftOper(this->m_LaplacianWeight,
                                   this->m_IdentityWeight,
                                   this->m_OperatorOrder,
@@ -135,7 +139,9 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     //       https://ccrma.stanford.edu/~jos/pasp/Linear_Interpolation_Frequency_Response.html
     Field3D * v0Spatial = new Field3D(this->m_grid, this->m_mType);
     this->m_fftoper->fourier2spatial(*v0Spatial, *(this->m_v0));
-    this->m_grid = GridInfo(Vec3Di(dims[0], dims[1], dims[2]));
+    this->m_grid = GridInfo(Vec3Di(dims[0], dims[1], dims[2]),
+                            Vec3Di(spacing[0], spacing[1], spacing[2]),
+                            Vec3Di(origin[0], origin[1], origin[2]));
     Field3D * v0SpatialNew = new Field3D(this->m_grid, this->m_mType);
     Opers::Resample(*v0SpatialNew, *v0Spatial);
     this->m_fftoper = new FftOper(this->m_LaplacianWeight,
@@ -145,6 +151,8 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     this->m_fftoper->FourierCoefficient();
     this->m_v0 = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
     this->m_fftoper->spatial2fourier(*(this->m_v0), *v0SpatialNew);
+    // increasing number of fourier coefficients can cause ringing in spatial domain, smooth hard edges
+    MulI_FieldComplex(*(this->m_v0), *(this->m_fftoper->Kcoeff));
     this->m_LearningRate = this->m_InitialLearningRate;
     }
 
