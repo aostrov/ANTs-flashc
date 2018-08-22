@@ -597,10 +597,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     }
 
   MulCI_FieldComplex(*updateField, scale);
-
-  std::cout << "MAXNORM: " << maxNorm << "\t\t";
-  std::cout << "SCALE: " << scale << std::endl;
-
   return updateField;
 }
 
