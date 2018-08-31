@@ -282,8 +282,8 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     {
       value = previousValue;
       Copy_FieldComplex(*(this->m_v0), *(this->m_previousV0));
-      this->m_LearningRate *= 0.8;
-      MulCI_FieldComplex(*(this->m_previousGradV), 0.8);
+      this->m_LearningRate *= 0.5;
+      MulCI_FieldComplex(*(this->m_previousGradV), 0.5);
       return this->m_previousGradV;
     }
   else
@@ -603,8 +603,16 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     {
     scale /= maxNorm;
     }
+<<<<<<< HEAD
 
   MulCI_FieldComplex(*updateField, scale);
+=======
+  if (scale < 1.0)
+    {
+    MulCI_FieldComplex(*updateField, scale);
+    }
+  
+>>>>>>> 5e08ee6668a023d380fea9246aa59ac0c4563984
   return updateField;
 }
 
