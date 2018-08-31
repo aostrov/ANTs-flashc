@@ -603,16 +603,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     {
     scale /= maxNorm;
     }
-<<<<<<< HEAD
-
-  MulCI_FieldComplex(*updateField, scale);
-=======
   if (scale < 1.0)
     {
     MulCI_FieldComplex(*updateField, scale);
     }
-  
->>>>>>> 5e08ee6668a023d380fea9246aa59ac0c4563984
+
   return updateField;
 }
 
