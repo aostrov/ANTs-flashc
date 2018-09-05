@@ -239,7 +239,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       this->m_FixedImageMasks, this->m_MovingImageMasks, metricValue, previousMetricValue );
 
     // update initial velocity
-    AddI_FieldComplex(*(this->m_v0), *smoothUpdateField, -1.0);
+    AddI_FieldComplex(*(this->m_v0), *smoothUpdateField, -(this->m_LearningRate));
 
     // monitor convergence information
     this->m_CurrentMetricValue = metricValue;
@@ -294,7 +294,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       Copy_FieldComplex(*(this->m_gradv), *(this->m_v0));
       AddI_FieldComplex(*(this->m_gradv), *(this->m_imMatchGradient),
                         1.0/(this->m_RegularizerTermWeight*this->m_RegularizerTermWeight));
-      this->m_gradv = this->ScaleUpdateField( this->m_gradv );
+      // this->m_gradv = this->ScaleUpdateField( this->m_gradv );
 
       previousValue = value;
       Copy_FieldComplex(*(this->m_previousV0), *(this->m_v0));
