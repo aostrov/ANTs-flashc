@@ -137,13 +137,22 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     {
     // TODO: could implement resample in Fourier domain:
     //       https://ccrma.stanford.edu/~jos/pasp/Linear_Interpolation_Frequency_Response.html
+    // debug
+    ITKFileIO::SaveImage(*(this->m_v0); "v0_before.nii.gz");
+    // end: debug
     Field3D * v0Spatial = new Field3D(this->m_grid, this->m_mType);
     this->m_fftoper->fourier2spatial(*v0Spatial, *(this->m_v0));
     this->m_grid = GridInfo(Vec3Di(dims[0], dims[1], dims[2]),
                             Vec3Di(spacing[0], spacing[1], spacing[2]),
                             Vec3Di(origin[0], origin[1], origin[2]));
     Field3D * v0SpatialNew = new Field3D(this->m_grid, this->m_mType);
+    // debug
+    ITKFileIO::SaveImage(*v0Spatial; "v0_spatial_before.nii.gz");
+    // end: debug
     Opers::Resample(*v0SpatialNew, *v0Spatial);
+    // debug
+    ITKFileIO::SaveImage(*v0SpatialNew; "v0_spatial_after.nii.gz");
+    // end: debug
     this->m_fftoper = new FftOper(this->m_LaplacianWeight,
                                   this->m_IdentityWeight,
                                   this->m_OperatorOrder,
@@ -152,8 +161,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     this->m_v0 = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
     this->m_fftoper->spatial2fourier(*(this->m_v0), *v0SpatialNew);
     // increasing number of fourier coefficients can cause ringing in spatial domain, smooth hard edges
-    MulI_FieldComplex(*(this->m_v0), *(this->m_fftoper->Kcoeff));
+    // MulI_FieldComplex(*(this->m_v0), *(this->m_fftoper->Kcoeff));
     this->m_LearningRate = this->m_InitialLearningRate;
+    // debug
+    ITKFileIO::SaveImage(*(this->m_v0); "v0_after.nii.gz");
+    // end: debug
     }
 
   // the identity field in the Fourier domain
