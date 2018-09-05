@@ -294,7 +294,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       Copy_FieldComplex(*(this->m_gradv), *(this->m_v0));
       AddI_FieldComplex(*(this->m_gradv), *(this->m_imMatchGradient),
                         1.0/(this->m_RegularizerTermWeight*this->m_RegularizerTermWeight));
-      // this->m_gradv = this->ScaleUpdateField( this->m_gradv );
 
       previousValue = value;
       Copy_FieldComplex(*(this->m_previousV0), *(this->m_v0));
@@ -562,53 +561,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     }
 
   return gradientField;
-}
-
-
-template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
-FieldComplex3D *
-FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
-::ScaleUpdateField( FieldComplex3D * updateField )
-{
-  VirtualImageBaseConstPointer virtualDomainImage = this->GetCurrentLevelVirtualDomainImage();
-  typename DisplacementFieldType::SpacingType spacing = virtualDomainImage->GetSpacing();
-
-  Vec3DComplex vector;
-  int x, y, z;
-  RealType maxNorm = NumericTraits<RealType>::NonpositiveMin();
-  int rastorSize = updateField->xDim * updateField->yDim * updateField->zDim;
-  for( int i = 0; i < rastorSize * 3; i += 3 )
-    {
-    z = i / (3 * updateField->xDim * updateField->yDim);
-    y = i % (3 * updateField->xDim * updateField->yDim) / (3 * updateField->xDim);
-    x = i % (3 * updateField->xDim * updateField->yDim) % (3 * updateField->xDim) / 3;
-    vector = updateField->getVal(x, y, z);
-
-    RealType localNorm = 0;
-    for( SizeValueType d = 0; d < ImageDimension; d++ )
-      {
-      localNorm += std::pow(std::real(vector[d]) / spacing[d], 2);
-      localNorm += std::pow(std::imag(vector[d]) / spacing[d], 2);
-      }
-    localNorm = std::sqrt( localNorm );
-
-    if( localNorm > maxNorm )
-      {
-      maxNorm = localNorm;
-      }
-    }
-
-  RealType scale = this->m_LearningRate;
-  if( maxNorm > NumericTraits<RealType>::ZeroValue() )
-    {
-    scale /= maxNorm;
-    }
-  if (scale < 1.0)
-    {
-    MulCI_FieldComplex(*updateField, scale);
-    }
-
-  return updateField;
 }
 
 
