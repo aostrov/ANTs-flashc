@@ -22,8 +22,8 @@ install(TARGETS antsUtilities
   )
 
 # FLASH EDIT
-include_directories("/Users/fleishmang/Development/source/ANTS_FLASH/flash")
-set(FLASH_SOURCE "/Users/fleishmang/Development/source/ANTS_FLASH/flash")
+include_directories("/groups/scicompsoft/home/fleishmang/source/ants_flash/flash")
+set(FLASH_SOURCE "/groups/scicompsoft/home/fleishmang/source/ants_flash/flash")
 set(FLASH_FILES
     ${FLASH_SOURCE}/FftOper.cxx
     ${FLASH_SOURCE}/FieldComplex3D.cxx

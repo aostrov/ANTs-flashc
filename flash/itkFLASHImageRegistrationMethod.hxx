@@ -619,7 +619,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     {
     MulCI_FieldComplex(*updateField, scale);
     }
-  
+
   return updateField;
 }
 

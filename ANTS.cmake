@@ -51,8 +51,8 @@ message(${ITK_USE_FILE})
 # (1) paths should not be hardcoded, should be provided by user to ccmake
 # (2) PyCA should be treated exactly like ITK in the way it is found and included
 # looks for PyCA bin directory
-set(PyCA_DIR "/Users/fleishmang/Development/bin/pyca")
-set(PyCA_SOURCE "/Users/fleishmang/Development/source/pyca")
+set(PyCA_DIR "/groups/scicompsoft/home/fleishmang/bin/pyca")
+set(PyCA_SOURCE "/groups/scicompsoft/home/fleishmang/source/pyca")
 IF(PyCA_DIR)
   INCLUDE(${PyCA_DIR}/PyCAConfig.cmake)
   INCLUDE_DIRECTORIES(${PyCA_INCLUDE_DIRECTORIES})
