@@ -138,7 +138,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     // TODO: could implement resample in Fourier domain:
     //       https://ccrma.stanford.edu/~jos/pasp/Linear_Interpolation_Frequency_Response.html
     // debug
-    ITKFileIO::SaveImage(*(this->m_v0); "v0_before.nii.gz");
+    ITKFileIO::SaveImage(*(this->m_v0), "v0_before.nii.gz");
     // end: debug
     Field3D * v0Spatial = new Field3D(this->m_grid, this->m_mType);
     this->m_fftoper->fourier2spatial(*v0Spatial, *(this->m_v0));
@@ -147,11 +147,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
                             Vec3Di(origin[0], origin[1], origin[2]));
     Field3D * v0SpatialNew = new Field3D(this->m_grid, this->m_mType);
     // debug
-    ITKFileIO::SaveImage(*v0Spatial; "v0_spatial_before.nii.gz");
+    ITKFileIO::SaveImage(*v0Spatial, "v0_spatial_before.nii.gz");
     // end: debug
     Opers::Resample(*v0SpatialNew, *v0Spatial);
     // debug
-    ITKFileIO::SaveImage(*v0SpatialNew; "v0_spatial_after.nii.gz");
+    ITKFileIO::SaveImage(*v0SpatialNew, "v0_spatial_after.nii.gz");
     // end: debug
     this->m_fftoper = new FftOper(this->m_LaplacianWeight,
                                   this->m_IdentityWeight,
@@ -164,7 +164,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     // MulI_FieldComplex(*(this->m_v0), *(this->m_fftoper->Kcoeff));
     this->m_LearningRate = this->m_InitialLearningRate;
     // debug
-    ITKFileIO::SaveImage(*(this->m_v0); "v0_after.nii.gz");
+    ITKFileIO::SaveImage(*(this->m_v0), "v0_after.nii.gz");
     // end: debug
     }
 
