@@ -201,7 +201,6 @@ protected:
     const PointSetsContainerType, const TransformBaseType *, const MovingImagesContainerType,
     const PointSetsContainerType, const TransformBaseType *, const FixedImageMasksContainerType,
     const MovingImageMasksContainerType, MeasureType &);
-  virtual FieldComplex3D * ScaleUpdateField( FieldComplex3D * );
 
   // dummies for observer
   OutputTransformPointer                                          m_MovingToMiddleTransform;
