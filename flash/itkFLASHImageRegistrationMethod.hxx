@@ -152,8 +152,8 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     this->m_v0 = new FieldComplex3D(NFC[0], NFC[1], NFC[2]);
     this->m_fftoper->spatial2fourier(*(this->m_v0), *v0SpatialNew);
     // increasing number of fourier coefficients can cause ringing in spatial domain, smooth hard edges
-    MulI_FieldComplex(*(this->m_v0), *(this->m_fftoper->Kcoeff));
-    this->m_LearningRate = this->m_InitialLearningRate;
+    // MulI_FieldComplex(*(this->m_v0), *(this->m_fftoper->Kcoeff));
+    // this->m_LearningRate = this->m_InitialLearningRate;
     }
 
   // the identity field in the Fourier domain
