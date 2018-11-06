@@ -653,10 +653,19 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   else
   {
     for (int i = 1; i <= this->m_NumberOfTimeSteps; i++)
+      {
       EulerStep(this->m_scratch1,
                 this->m_VelocityFlowField[i-1],
                 this->m_VelocityFlowField[i],
                 this->m_TimeStepSize);
+      // debug
+      if (this->m_CurrentLevel == this->m_NumberOfLevels - 1)
+        {
+        std::string output_path = "v" + std::to_string(i) + ".nii.gz";
+        ITKFileIO::SaveField(*this->m_VelocityFlowField[i], output_path);
+        }
+      // end: debug; remove extra braces around EulerStep for cleanliness
+      }
   }
 
   // integrate velocity flow through advection equation to obtain inverse of path endpoint
