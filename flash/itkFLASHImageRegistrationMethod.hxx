@@ -662,7 +662,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       if (this->m_CurrentLevel == this->m_NumberOfLevels - 1)
         {
         std::string output_path = "v" + std::to_string(i) + ".nii.gz";
-        ITKFileIO::SaveField(*this->m_VelocityFlowField[i], output_path);
+        ITKFileIO::SaveField(*(this->m_VelocityFlowField[i]), output_path);
         }
       // end: debug; remove extra braces around EulerStep for cleanliness
       }
