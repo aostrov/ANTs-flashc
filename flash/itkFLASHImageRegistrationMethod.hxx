@@ -162,7 +162,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     ITKFileIO::SaveField(*v0Spatial, "v0_spatial_after_fft.nii.gz");
     //end debug
     // increasing number of fourier coefficients can cause ringing in spatial domain, smooth hard edges
-    MulI_FieldComplex(*(this->m_v0), *(this->m_fftoper->Kcoeff));
+    if (this->m_FourierSizes[level] != this->m_FourierSizes[level-1])
+      {
+      std::cout << "SMOOTHING BETWEEN LEVELS" << std::endl;
+      MulI_FieldComplex(*(this->m_v0), *(this->m_fftoper->Kcoeff));
+      }
     this->m_LearningRate = this->m_InitialLearningRate;
     }
 
