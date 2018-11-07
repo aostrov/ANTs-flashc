@@ -659,11 +659,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
                 this->m_TimeStepSize);
 
     // debug
-    if (this->m_CurrentLevel == this->m_NumberOfLevels - 1)
-      {
-      Field3D * vSpatial = new Field3D(this->m_grid, this->m_mType);
-      this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[0]));
-      ITKFileIO::SaveField(*vSpatial, "v0.nii.gz");
+    // if (this->m_CurrentLevel == this->m_NumberOfLevels - 1)
+    //   {
+    //   Field3D * vSpatial = new Field3D(this->m_grid, this->m_mType);
+    //   this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[0]));
+    //   ITKFileIO::SaveField(*vSpatial, "v0.nii.gz");
       // this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[1]));
       // ITKFileIO::SaveField(*vSpatial, "v1.nii.gz");
       // this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[2]));
@@ -684,7 +684,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
       // ITKFileIO::SaveField(*vSpatial, "v9.nii.gz");
       // this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[10]));
       // ITKFileIO::SaveField(*vSpatial, "v10.nii.gz");
-      }
+      // }
 
     // examples
     // Field3D * v0Spatial = new Field3D(this->m_grid, this->m_mType); // probably fine
