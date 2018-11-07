@@ -144,11 +144,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
                             Vec3Di(origin[0], origin[1], origin[2]));
     Field3D * v0SpatialNew = new Field3D(this->m_grid, this->m_mType);
     // debug
-    ITKFileIO::SaveField(*v0Spatial, "v0_spatial_before_resample.nii.gz");
+    // ITKFileIO::SaveField(*v0Spatial, "v0_spatial_before_resample.nii.gz");
     // end: debug
     Opers::Resample(*v0SpatialNew, *v0Spatial);
     // debug
-    ITKFileIO::SaveField(*v0SpatialNew, "v0_spatial_after_resample.nii.gz");
+    // ITKFileIO::SaveField(*v0SpatialNew, "v0_spatial_after_resample.nii.gz");
     // end: debug
     this->m_fftoper = new FftOper(this->m_LaplacianWeight,
                                   this->m_IdentityWeight,
@@ -159,7 +159,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     this->m_fftoper->spatial2fourier(*(this->m_v0), *v0SpatialNew);
     //debug
     this->m_fftoper->fourier2spatial(*v0Spatial, *(this->m_v0));
-    ITKFileIO::SaveField(*v0Spatial, "v0_spatial_after_fft.nii.gz");
+    // ITKFileIO::SaveField(*v0Spatial, "v0_spatial_after_fft.nii.gz");
     //end debug
     // increasing number of fourier coefficients can cause ringing in spatial domain, smooth hard edges
     if (this->m_FourierSizes[level] != this->m_FourierSizes[level-1])
