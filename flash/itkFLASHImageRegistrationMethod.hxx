@@ -653,19 +653,26 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   else
   {
     for (int i = 1; i <= this->m_NumberOfTimeSteps; i++)
-      {
       EulerStep(this->m_scratch1,
                 this->m_VelocityFlowField[i-1],
                 this->m_VelocityFlowField[i],
                 this->m_TimeStepSize);
-      // debug
-      if (this->m_CurrentLevel == this->m_NumberOfLevels - 1)
-        {
-        std::string output_path = "v" + std::to_string(i) + ".nii.gz";
-        ITKFileIO::SaveField(*(this->m_VelocityFlowField[i]), output_path);
-        }
-      // end: debug; remove extra braces around EulerStep for cleanliness
+    // debug
+    if (this->m_CurrentLevel == this->m_NumberOfLevels - 1)
+      {
+      ITKFileIO::SaveField(*(this->m_VelocityFlowField[0]), "v0.nii.gz");
+      ITKFileIO::SaveField(*(this->m_VelocityFlowField[1]), "v1.nii.gz");
+      ITKFileIO::SaveField(*(this->m_VelocityFlowField[2]), "v2.nii.gz");
+      ITKFileIO::SaveField(*(this->m_VelocityFlowField[3]), "v3.nii.gz");
+      ITKFileIO::SaveField(*(this->m_VelocityFlowField[4]), "v4.nii.gz");
+      ITKFileIO::SaveField(*(this->m_VelocityFlowField[5]), "v5.nii.gz");
+      ITKFileIO::SaveField(*(this->m_VelocityFlowField[6]), "v6.nii.gz");
+      ITKFileIO::SaveField(*(this->m_VelocityFlowField[7]), "v7.nii.gz");
+      ITKFileIO::SaveField(*(this->m_VelocityFlowField[8]), "v8.nii.gz");
+      ITKFileIO::SaveField(*(this->m_VelocityFlowField[9]), "v9.nii.gz");
+      ITKFileIO::SaveField(*(this->m_VelocityFlowField[10]), "v10.nii.gz");
       }
+    // end: debug; remove extra braces around EulerStep for cleanliness
   }
 
   // integrate velocity flow through advection equation to obtain inverse of path endpoint
