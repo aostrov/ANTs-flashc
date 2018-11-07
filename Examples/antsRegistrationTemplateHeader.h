@@ -919,29 +919,23 @@ DoRegistration(typename ParserType::Pointer & parser)
           LaplacianWeight =
             parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter( 2 ) );
           }
-        float IdentityWeight = 1.0;
-        if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
-          {
-          IdentityWeight =
-            parser->Convert<float>( transformOption->GetFunction( currentStage )->GetParameter( 3 ) );
-          }
         int OperatorOrder = 6;
         if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
           {
           OperatorOrder =
-            parser->Convert<int>( transformOption->GetFunction( currentStage )->GetParameter( 4 ) );
+            parser->Convert<int>( transformOption->GetFunction( currentStage )->GetParameter( 3 ) );
           }
         int NumberOfTimeSteps = 10;
         if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
           {
           NumberOfTimeSteps =
-            parser->Convert<int>( transformOption->GetFunction( currentStage )->GetParameter( 5 ) );
+            parser->Convert<int>( transformOption->GetFunction( currentStage )->GetParameter( 4 ) );
           }
         std::vector<int> fourierSizes(numberOfLevels, 32);
         if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
           {
           fourierSizes =
-            parser->ConvertVector<int>( transformOption->GetFunction( currentStage )->GetParameter( 6 ) );
+            parser->ConvertVector<int>( transformOption->GetFunction( currentStage )->GetParameter( 5 ) );
           if ( fourierSizes.size() != numberOfLevels )
             {
             if( verbose )
@@ -952,7 +946,7 @@ DoRegistration(typename ParserType::Pointer & parser)
             }
           }
         regHelper->AddFLASHTransform( learningRate, RegularizerTermWeight, LaplacianWeight,
-                                      IdentityWeight, OperatorOrder, NumberOfTimeSteps, fourierSizes );
+                                      OperatorOrder, NumberOfTimeSteps, fourierSizes );
         }
         break;
       // END: FLASH edit

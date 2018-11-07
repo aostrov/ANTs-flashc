@@ -454,7 +454,6 @@ public:
     // FLASH
     RealType                    m_RegularizerTermWeight;
     RealType                    m_LaplacianWeight;
-    RealType                    m_IdentityWeight;
     int                         m_OperatorOrder;
     int                         m_NumberOfTimeSteps;
     std::vector<int>            m_FourierSizes;
@@ -637,8 +636,7 @@ public:
    * add a FLASH transform
    */
   void AddFLASHTransform(RealType GradientStep, RealType RegularizerTermWeight, RealType LaplacianWeight,
-                         RealType IdentityWeight, int OperatorOrder, int NumberOfTimeSteps,
-                         std::vector<int> FourierSizes);
+                         int OperatorOrder, int NumberOfTimeSteps, std::vector<int> FourierSizes);
   // END: FLASH edit
 
   /**

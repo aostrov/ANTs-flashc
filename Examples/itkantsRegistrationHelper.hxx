@@ -532,8 +532,7 @@ template <class TComputeType, unsigned VImageDimension>
 void
 RegistrationHelper<TComputeType, VImageDimension>
 ::AddFLASHTransform(RealType GradientStep, RealType RegularizerTermWeight, RealType LaplacianWeight,
-                    RealType IdentityWeight, int OperatorOrder, int NumberOfTimeSteps,
-                    std::vector<int> FourierSizes)
+                    int OperatorOrder, int NumberOfTimeSteps, std::vector<int> FourierSizes)
 {
   TransformMethod init;
 
@@ -541,7 +540,6 @@ RegistrationHelper<TComputeType, VImageDimension>
   init.m_GradientStep = GradientStep;
   init.m_RegularizerTermWeight = RegularizerTermWeight;
   init.m_LaplacianWeight = LaplacianWeight;
-  init.m_IdentityWeight = IdentityWeight;
   init.m_OperatorOrder = OperatorOrder;
   init.m_NumberOfTimeSteps = NumberOfTimeSteps;
   init.m_FourierSizes = FourierSizes;
@@ -3461,7 +3459,6 @@ RegistrationHelper<TComputeType, VImageDimension>
 
         displacementFieldRegistration->SetRegularizerTermWeight(this->m_TransformMethods[currentStageNumber].m_RegularizerTermWeight);
         displacementFieldRegistration->SetLaplacianWeight(this->m_TransformMethods[currentStageNumber].m_LaplacianWeight);
-        displacementFieldRegistration->SetIdentityWeight(this->m_TransformMethods[currentStageNumber].m_IdentityWeight);
         displacementFieldRegistration->SetOperatorOrder(this->m_TransformMethods[currentStageNumber].m_OperatorOrder);
         displacementFieldRegistration->SetNumberOfTimeSteps(this->m_TransformMethods[currentStageNumber].m_NumberOfTimeSteps);
         displacementFieldRegistration->SetFourierSizes(this->m_TransformMethods[currentStageNumber].m_FourierSizes);
