@@ -663,22 +663,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   this->m_fftoper->fourier2spatial_addH(*(this->m_phiinv),
                                         *(this->m_scratch1),
                                         this->idxf, this->idyf, this->idzf);
-
-  // debug
-    if (this->m_CurrentLevel == this->m_NumberOfLevels - 1)
-      {
-      Image3D * v0, * v1, * v2;
-      v0 = new Image3D(this->m_grid, this->m_mType);
-      v1 = new Image3D(this->m_grid, this->m_mType);
-      v2 = new Image3D(this->m_grid, this->m_mType);
-      Opers::Copy(*v0, *(this->m_phiinv), 0);
-      Opers::Copy(*v1, *(this->m_phiinv), 1);
-      Opers::Copy(*v2, *(this->m_phiinv), 2);
-      ITKFileIO::SaveImage(*v0, "phi_0.nii.gz");
-      ITKFileIO::SaveImage(*v1, "phi_1.nii.gz");
-      ITKFileIO::SaveImage(*v2, "phi_2.nii.gz");
-      }
-    // end: debug
 }
 
 
