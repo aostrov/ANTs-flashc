@@ -144,11 +144,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
                             Vec3Di(origin[0], origin[1], origin[2]));
     Field3D * v0SpatialNew = new Field3D(this->m_grid, this->m_mType);
     // debug
-    ITKFileIO::SaveField(*v0Spatial, "v0_spatial_before_resample.mhd", 1);
+    ITKFileIO::SaveField(*v0Spatial, "v0_spatial_before_resample.nii.gz");
     // end: debug
     Opers::Resample(*v0SpatialNew, *v0Spatial);
     // debug
-    // ITKFileIO::SaveField(*v0SpatialNew, "v0_spatial_after_resample.nii.gz");
+    ITKFileIO::SaveField(*v0SpatialNew, "v0_spatial_after_resample.nii.gz");
     // end: debug
     this->m_fftoper = new FftOper(this->m_LaplacianWeight,
                                   this->m_IdentityWeight,
@@ -159,7 +159,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     this->m_fftoper->spatial2fourier(*(this->m_v0), *v0SpatialNew);
     //debug
     this->m_fftoper->fourier2spatial(*v0Spatial, *(this->m_v0));
-    // ITKFileIO::SaveField(*v0Spatial, "v0_spatial_after_fft.nii.gz");
+    ITKFileIO::SaveField(*v0Spatial, "v0_spatial_after_fft.nii.gz");
     //end debug
     // increasing number of fourier coefficients can cause ringing in spatial domain, smooth hard edges
     if (this->m_FourierSizes[level] != this->m_FourierSizes[level-1])
@@ -659,38 +659,33 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
                 this->m_TimeStepSize);
 
     // debug
-    // if (this->m_CurrentLevel == this->m_NumberOfLevels - 1)
-    //   {
-    //   Field3D * vSpatial = new Field3D(this->m_grid, this->m_mType);
-    //   this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[0]));
-    //   ITKFileIO::SaveField(*vSpatial, "v0.nii.gz");
-      // this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[1]));
-      // ITKFileIO::SaveField(*vSpatial, "v1.nii.gz");
-      // this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[2]));
-      // ITKFileIO::SaveField(*vSpatial, "v2.nii.gz");
-      // this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[3]));
-      // ITKFileIO::SaveField(*vSpatial, "v3.nii.gz");
-      // this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[4]));
-      // ITKFileIO::SaveField(*vSpatial, "v4.nii.gz");
-      // this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[5]));
-      // ITKFileIO::SaveField(*vSpatial, "v5.nii.gz");
-      // this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[6]));
-      // ITKFileIO::SaveField(*vSpatial, "v6.nii.gz");
-      // this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[7]));
-      // ITKFileIO::SaveField(*vSpatial, "v7.nii.gz");
-      // this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[8]));
-      // ITKFileIO::SaveField(*vSpatial, "v8.nii.gz");
-      // this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[9]));
-      // ITKFileIO::SaveField(*vSpatial, "v9.nii.gz");
-      // this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[10]));
-      // ITKFileIO::SaveField(*vSpatial, "v10.nii.gz");
-      // }
-
-    // examples
-    // Field3D * v0Spatial = new Field3D(this->m_grid, this->m_mType); // probably fine
-    // this->m_fftoper->fourier2spatial(*v0Spatial, *(this->m_v0));
-    // ITKFileIO::SaveField(*v0Spatial, "v0_spatial_before_resample.nii.gz");
-    // end: examples
+    if (this->m_CurrentLevel == this->m_NumberOfLevels - 1)
+      {
+      Field3D * vSpatial = new Field3D(this->m_grid, this->m_mType);
+      this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[0]));
+      ITKFileIO::SaveField(*vSpatial, "v0.nii.gz");
+      this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[1]));
+      ITKFileIO::SaveField(*vSpatial, "v1.nii.gz");
+      this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[2]));
+      ITKFileIO::SaveField(*vSpatial, "v2.nii.gz");
+      this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[3]));
+      ITKFileIO::SaveField(*vSpatial, "v3.nii.gz");
+      this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[4]));
+      ITKFileIO::SaveField(*vSpatial, "v4.nii.gz");
+      this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[5]));
+      ITKFileIO::SaveField(*vSpatial, "v5.nii.gz");
+      this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[6]));
+      ITKFileIO::SaveField(*vSpatial, "v6.nii.gz");
+      this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[7]));
+      ITKFileIO::SaveField(*vSpatial, "v7.nii.gz");
+      this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[8]));
+      ITKFileIO::SaveField(*vSpatial, "v8.nii.gz");
+      this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[9]));
+      ITKFileIO::SaveField(*vSpatial, "v9.nii.gz");
+      this->m_fftoper->fourier2spatial(*vSpatial, *(this->m_VelocityFlowField[10]));
+      ITKFileIO::SaveField(*vSpatial, "v10.nii.gz");
+      }
+    // end: debug
   }
 
   // integrate velocity flow through advection equation to obtain inverse of path endpoint
