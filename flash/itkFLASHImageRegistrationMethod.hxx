@@ -144,7 +144,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
                             Vec3Di(origin[0], origin[1], origin[2]));
     Field3D * v0SpatialNew = new Field3D(this->m_grid, this->m_mType);
     // debug
-    ITKFileIO::SaveField(*v0Spatial, "v0_spatial_before_resample.mhd");
+    ITKFileIO::SaveImage(*v0Spatial, "v0_spatial_before_resample.mhd");
     // end: debug
     Opers::Resample(*v0SpatialNew, *v0Spatial);
     // debug
