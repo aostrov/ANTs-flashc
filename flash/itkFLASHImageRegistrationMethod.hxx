@@ -20,6 +20,10 @@
 
 #include "itkFLASHImageRegistrationMethod.h"
 
+#include "itkWarpVectorImageFilter.h"
+#include "itkMultiplyImageFilter.h"
+#include "itkComposeDisplacementFieldsImageFilter.h"
+
 using namespace PyCA;
 namespace itk
 {
@@ -35,7 +39,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   m_ConvergenceWindowSize( 10 ),
   m_RegularizerTermWeight( 0.03 ),
   m_LaplacianWeight( 3.0 ),
-  m_IdentityWeight( 1.0 ),
+  m_IdentityWeight( 1.0 ),  // not currently accessible in interface layer, redundant parameter, left in case it's useful later, needed by fftoper
   m_OperatorOrder( 6 ),
   m_NumberOfTimeSteps( 10 ),
   m_TimeStepSize( 1.0/10 )
@@ -71,7 +75,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   this->AllocateOutputs();
   for( this->m_CurrentLevel = 0; this->m_CurrentLevel < this->m_NumberOfLevels; this->m_CurrentLevel++ )
     {
-    std::cout << "INITIALIZING AT LEVEL: " << this->m_CurrentLevel << std::endl;
     this->InitializeRegistrationAtEachLevel( this->m_CurrentLevel );
     // The base class adds the transform to be optimized at initialization.
     // However, since this class handles its own optimization, we remove it
@@ -82,6 +85,13 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     }
   // TODO: ask Nick about writeVelocityField boolean in antsRegistrationTemplateHeader
   // TODO: ask Nick about writeInverse boolean in antsRegistrationTemplateHeader
+  // TODO: need to set displacement field and inverse displacement field to different things here
+  //       meaning completeTransform must have both forward and inverse transforms set properly
+  //       completeTransform gets inverse displacement set after forward integration within ComputeUpdateField (line ~276); must be converted to ITK field first
+  //       inverse displacement constructed in lines ~657 - 662, advection steps build inverse displacement, need regular Euler steps on velocity to build
+  //           forward displacement
+  //    BEST DESIGN OPTION: at this point, run ForwardIntegration one more time but with a flag set to indicate that we should compute
+  //        the forward field as well.
   this->m_OutputTransform->SetDisplacementField(this->m_completeTransform->GetModifiableInverseDisplacementField());
   this->m_OutputTransform->SetInverseDisplacementField(this->m_completeTransform->GetModifiableInverseDisplacementField());
   this->GetTransformOutput()->Set(this->m_OutputTransform);
@@ -616,7 +626,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   Vec3Df pycaVector, pycaIdentity;
   for( Iter.GoToBegin(); !Iter.IsAtEnd(); ++Iter )
     {
-    pycaVector = this->m_phiinv->get(count);
+    pycaVector = pycaField.get(count);  // fixed bug, used to be this->m_phiinv (which was previously the only thing passed in, but now should work for new stuff)
     pycaIdentity = this->m_identity->get(count++);
     for( SizeValueType d = 0; d < ImageDimension; d++ )
       itkVector[d] = pycaVector[d] - pycaIdentity[d];
@@ -751,6 +761,45 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   Jacobian(*JacX, *JacY, *JacZ, *(this->m_fftoper->CDcoeff), *sf1);
   this->m_fftoper->ConvolveComplexFFT(*sf2, 0, *JacX, *JacY, *JacZ, *vff);
   AddIMul_FieldComplex(*sf1, *sf2, *vff, -dt);
+}
+
+
+template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
+void
+FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
+::ForwardTransformStep(DisplacementFieldType * displacement, DisplacementFieldType * spatialVitk, Field3D * spatialV, FieldComplex3D * vff, float dt)
+// displacement: ITK displacement field object holding current forward displacement field
+// spatialVitk: ITK displacement field object to hold spatial velocity as an ITK object
+// spatialV: pyca Field3D to hold velocity in spatial domain
+// vff: velocity flow field for current time step
+// dt: time step size
+{
+  // phi_t = phi_{t-1} + dt * invFFT(v_t) o phi_{t-1}
+  // get spatial velocity as ITK object
+  // adding identity, then stripping it off in pycaToItkVectorField is wasteful, but we only compute forward transform once
+  this->m_fftoper->fourier2spatial_addH(*spatialV, *vff, this->idxf, this->idyf, this->idzf);
+  pycaToItkVectorField(*spatialVitk, *spatialV);
+  // move Eulerian velocity to Lagrangian velocity with current value of displacement
+  using warpType = WarpVectorImageFilter<DisplacementFieldType, DisplacementFieldType, DisplacementFieldType>;
+  typename warpType::Pointer warper = warpType::New();
+  // warper->SetOutputSpacing(displacement->GetSpacing());  // these are potentially unnecessary, check output origin/spacing info w/o them first
+  // warper->SetOutputOrigin(displacement->GetOrigin());
+  // warper->SetOutputDirection(displacement->GetDirection());
+  warper->SetInput( spatialVitk ); // possibly need to dereference these?
+  warper->SetDisplacementField( displacement );
+  // multiply by time step
+  using MultiplierType = MultiplyImageFilter<DisplacementFieldType, DisplacementFieldType, DisplacementFieldType>;
+  typename MultiplierType::Pointer multiplier = MultiplierType::New();
+  multiplier->SetInput( warper->GetOutput() );
+  multiplier->SetConstant( dt );
+  // add to current value of transform
+  using ComposerType = ComposeDisplacementFieldsImageFilter<DisplacementFieldType>;
+  typename ComposerType::Pointer composer = ComposerType::New();
+  composer->SetDisplacementField( multiplier->GetOutput() );
+  composer->SetWarpingField( displacement );
+  displacement = composer->GetOutput();
+  displacement->Update();
+  displacement->DisconnectPipeline();
 }
 
 

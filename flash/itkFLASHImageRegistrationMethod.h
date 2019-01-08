@@ -216,6 +216,8 @@ protected:
   void AdvectionStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *,
                      FieldComplex3D *, FieldComplex3D *, FieldComplex3D *,
                      float);
+  void ForwardTransformStep(DisplacementFieldType *, DisplacementFieldType *,
+                            Field3D *, FieldComplex3D *, float);
   void AdjointStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *,
                    FieldComplex3D *, FieldComplex3D *,
                    float);
