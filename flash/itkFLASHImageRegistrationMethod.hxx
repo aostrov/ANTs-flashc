@@ -39,7 +39,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   m_ConvergenceWindowSize( 10 ),
   m_RegularizerTermWeight( 0.03 ),
   m_LaplacianWeight( 3.0 ),
-  m_IdentityWeight( 1.0 ),  // not currently accessible in interface layer, redundant parameter, left in case it's useful later, needed by fftoper
+  m_IdentityWeight( 1.0 ),  // not currently accessible in interface as it's a redundant parameter, left in case it's useful later, needed by fftoper
   m_OperatorOrder( 6 ),
   m_NumberOfTimeSteps( 10 ),
   m_TimeStepSize( 1.0/10 )
@@ -85,15 +85,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     }
   // TODO: ask Nick about writeVelocityField boolean in antsRegistrationTemplateHeader
   // TODO: ask Nick about writeInverse boolean in antsRegistrationTemplateHeader
-  // TODO: need to set displacement field and inverse displacement field to different things here
-  //       meaning completeTransform must have both forward and inverse transforms set properly
-  //       completeTransform gets inverse displacement set after forward integration within ComputeUpdateField (line ~276); must be converted to ITK field first
-  //       inverse displacement constructed in lines ~657 - 662, advection steps build inverse displacement, need regular Euler steps on velocity to build
-  //           forward displacement
-  //    BEST DESIGN OPTION: at this point, run ForwardIntegration one more time but with a flag set to indicate that we should compute
-  //        the forward field as well.
-  this->m_OutputTransform->SetDisplacementField(this->m_completeTransform->GetModifiableInverseDisplacementField());
-  this->m_OutputTransform->SetInverseDisplacementField(this->m_completeTransform->GetModifiableInverseDisplacementField());
+  // bit of a risk here in that recomputing ForwardIntegration includes the final gradient descent update, which
+  // has not been tested against the objective function yet
+  ForwardIntegration(true);
+  this->m_OutputTransform->SetDisplacementField(this->m_movingToFixedInverseDisplacement);
+  this->m_OutputTransform->SetInverseDisplacementField(this->m_fixedToMovingInverseDisplacement);
   this->GetTransformOutput()->Set(this->m_OutputTransform);
 }
 
@@ -806,9 +802,9 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   // move Eulerian velocity to Lagrangian velocity with current value of displacement
   using warpType = WarpVectorImageFilter<DisplacementFieldType, DisplacementFieldType, DisplacementFieldType>;
   typename warpType::Pointer warper = warpType::New();
-  // warper->SetOutputSpacing(displacement->GetSpacing());  // these are potentially unnecessary, check output origin/spacing info w/o them first
-  // warper->SetOutputOrigin(displacement->GetOrigin());
-  // warper->SetOutputDirection(displacement->GetDirection());
+  warper->SetOutputSpacing(displacement->GetSpacing());
+  warper->SetOutputOrigin(displacement->GetOrigin());
+  warper->SetOutputDirection(displacement->GetDirection());
   warper->SetInput( spatialVitk ); // possibly need to dereference these?
   warper->SetDisplacementField( displacement );
   // multiply by time step
@@ -823,7 +819,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   composer->SetWarpingField( displacement );
   displacement = composer->GetOutput();
   displacement->Update();
-  displacement->DisconnectPipeline();
 }
 
 
