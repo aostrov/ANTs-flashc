@@ -223,7 +223,7 @@ protected:
                    float);
   void ad(FieldComplex3D &, const FieldComplex3D &, const FieldComplex3D &);
   void adTranspose(FieldComplex3D &, const FieldComplex3D &, const FieldComplex3D &);
-  void ForwardIntegration();
+  void ForwardIntegration(bool = false);
   void BackwardIntegration();
   // END: FLASH EDIT
   
@@ -283,6 +283,8 @@ protected:
   GridInfo                                                        m_grid;
 
   DisplacementFieldPointer                                        m_movingToFixedInverseDisplacement;
+  DisplacementFieldPointer                                        m_fixedToMovingInverseDisplacement;
+  DisplacementFieldPointer                                        m_spatialVitk;
 
 public:
   // Set/Get for the FLASH specific variables

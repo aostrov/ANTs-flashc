@@ -210,11 +210,24 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   this->m_phiinv = new Field3D(this->m_grid, this->m_mType);
 
   // ITK displacement field and transform to hold complete transform matching moving to fixed image
+  // TODO: nomenclature here is bad, don't need to keep track of fixed/moving *and* forward/inverse since it's not SyN
+  //       make more self-documenting when refactor
   this->m_movingToFixedInverseDisplacement = DisplacementFieldType::New();
   this->m_movingToFixedInverseDisplacement->CopyInformation( virtualDomainImage );
   this->m_movingToFixedInverseDisplacement->SetRegions( virtualDomainImage->GetRequestedRegion() );
   this->m_movingToFixedInverseDisplacement->Allocate();
   this->m_completeTransform = OutputTransformType::New();
+
+  // these ones are actually only needed for the final iteration of the final level
+  this->m_fixedToMovingInverseDisplacement = DisplacementFieldType::New();
+  this->m_fixedToMovingInverseDisplacement->CopyInformation( virtualDomainImage );
+  this->m_fixedToMovingInverseDisplacement->SetRegions( virtualDomainImage->GetRequestedRegion() );
+  this->m_fixedToMovingInverseDisplacement->Allocate();
+
+  this->m_spatialVitk = DisplacementFieldType::New();
+  this->m_spatialVitk->CopyInformation( virtualDomainImage );
+  this->m_spatialVitk->SetRegions( virtualDomainImage->GetRequestedRegion() );
+  this->m_spatialVitk->Allocate();
 }
 
 
@@ -641,7 +654,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
 template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
 void
 FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
-::ForwardIntegration()
+::ForwardIntegration(bool computeForwardTransform)
 {
   // obtain velocity flow with EPDiff in Fourier domain
   Copy_FieldComplex(*(this->m_VelocityFlowField[0]), *(this->m_v0));
@@ -673,6 +686,17 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   this->m_fftoper->fourier2spatial_addH(*(this->m_phiinv),
                                         *(this->m_scratch1),
                                         this->idxf, this->idyf, this->idzf);
+
+  // if final iteration of final level, we want the forward transform also
+  if (computeForwardTransform)
+  {
+    for (int i = 0; i < this->m_NumberOfTimeSteps; i++)
+      ForwardTransformStep(this->m_fixedToMovingInverseDisplacement,
+                           this->m_spatialVitk,
+                           this->m_scratchV1,
+                           this->m_VelocityFlowField[i],
+                           this->m_TimeStepSize);
+  }
 }
 
 
