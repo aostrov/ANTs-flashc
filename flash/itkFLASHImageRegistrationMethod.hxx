@@ -88,8 +88,8 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   // bit of a risk here in that recomputing ForwardIntegration includes the final gradient descent update, which
   // has not been tested against the objective function yet
   ForwardIntegration(true);
-  this->m_OutputTransform->SetInverseDisplacementField(this->m_movingToFixedInverseDisplacement);
   this->m_OutputTransform->SetDisplacementField(this->m_fixedToMovingInverseDisplacement);
+  this->m_OutputTransform->SetInverseDisplacementField(this->m_movingToFixedInverseDisplacement);
   this->GetTransformOutput()->Set(this->m_OutputTransform);
 }
 
