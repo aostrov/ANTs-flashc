@@ -88,8 +88,8 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   // bit of a risk here in that recomputing ForwardIntegration includes the final gradient descent update, which
   // has not been tested against the objective function yet
   ForwardIntegration(true);
-  this->m_OutputTransform->SetDisplacementField(this->m_movingToFixedInverseDisplacement);
-  this->m_OutputTransform->SetInverseDisplacementField(this->m_fixedToMovingInverseDisplacement);
+  this->m_OutputTransform->SetInverseDisplacementField(this->m_movingToFixedInverseDisplacement);
+  this->m_OutputTransform->SetDisplacementField(this->m_fixedToMovingInverseDisplacement);
   this->GetTransformOutput()->Set(this->m_OutputTransform);
 }
 
@@ -288,7 +288,6 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   MeasureType & value, MeasureType & previousValue )
 {
   this->ForwardIntegration();
-  pycaToItkVectorField(*(this->m_movingToFixedInverseDisplacement), *(this->m_phiinv));
 
   this->m_completeTransform->SetInverseDisplacementField(this->m_movingToFixedInverseDisplacement);
   typename CompositeTransformType::Pointer movingComposite = CompositeTransformType::New();
@@ -678,10 +677,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
                   this->m_VelocityFlowField[i],
                   this->m_TimeStepSize);
 
-  // obtain spatial domain transform, apply to image
+  // obtain spatial domain transform, convert to ITK field
   this->m_fftoper->fourier2spatial_addH(*(this->m_phiinv),
                                         *(this->m_scratch1),
                                         this->idxf, this->idyf, this->idzf);
+  pycaToItkVectorField(*(this->m_movingToFixedInverseDisplacement), *(this->m_phiinv));
 
   // if final iteration of final level, we want the forward transform also
   if (computeForwardTransform)
@@ -808,17 +808,19 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   warper->SetInput( spatialVitk ); // possibly need to dereference these?
   warper->SetDisplacementField( displacement );
   // multiply by time step
-  using MultiplierType = MultiplyImageFilter<DisplacementFieldType, DisplacementFieldType, DisplacementFieldType>;
+  using RealImageType = Image<float, ImageDimension>;
+  using MultiplierType = MultiplyImageFilter<DisplacementFieldType, RealImageType, DisplacementFieldType>;
   typename MultiplierType::Pointer multiplier = MultiplierType::New();
   multiplier->SetInput( warper->GetOutput() );
   multiplier->SetConstant( dt );
+  multiplier->Update();
   // add to current value of transform
   using ComposerType = ComposeDisplacementFieldsImageFilter<DisplacementFieldType>;
   typename ComposerType::Pointer composer = ComposerType::New();
   composer->SetDisplacementField( multiplier->GetOutput() );
   composer->SetWarpingField( displacement );
-  displacement = composer->GetOutput();
-  displacement->Update();
+  composer->Update();
+  this->m_fixedToMovingInverseDisplacement = composer->GetOutput();
 }
 
 
