@@ -153,6 +153,10 @@ public:
 
   typedef Array<SizeValueType>                                        NumberOfIterationsArrayType;
 
+  // FLASH edit
+  typedef Vector< float, ImageDimension*2 >                           ComplexVectorType;
+  typedef Image< ComplexVectorType, ImageDimension >                  ComplexFieldType;
+
   /** Set/Get the learning rate. */
   itkSetMacro( LearningRate, RealType );
   itkGetConstMacro( LearningRate, RealType );
@@ -210,6 +214,7 @@ protected:
   Image3D * itkToPycaImage(int, int, int, TMovingImage *);
   void itkToPycaVectorField(Field3D &, DisplacementFieldType &);
   void pycaToItkVectorField(DisplacementFieldType &, Field3D &);
+  void pycaToItkComplexVectorField(ComplexFieldType &, FieldComplex3D &);
   void EulerStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *, float);
   void RungeKuttaStep(FieldComplex3D *, FieldComplex3D *, FieldComplex3D *,
                       FieldComplex3D *, FieldComplex3D *, float);

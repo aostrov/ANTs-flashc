@@ -24,6 +24,11 @@
 #include "itkMultiplyImageFilter.h"
 #include "itkComposeDisplacementFieldsImageFilter.h"
 
+// TODO: writing out low dim field should eventually be handled in
+//       antsRegistrationTemplateHeader.h, and (optional) turned off with a
+//       flag in the interface
+#include "itkImageFileWriter.h"
+
 using namespace PyCA;
 namespace itk
 {
@@ -83,6 +88,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
     this->StartOptimization();
     this->m_CompositeTransform->AddTransform( this->m_OutputTransform );
     }
+
   // TODO: ask Nick about writeVelocityField boolean in antsRegistrationTemplateHeader
   // TODO: ask Nick about writeInverse boolean in antsRegistrationTemplateHeader
   // bit of a risk here in that recomputing ForwardIntegration includes the final gradient descent update, which
@@ -91,6 +97,40 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   this->m_OutputTransform->SetDisplacementField(this->m_fixedToMovingInverseDisplacement);
   this->m_OutputTransform->SetInverseDisplacementField(this->m_movingToFixedInverseDisplacement);
   this->GetTransformOutput()->Set(this->m_OutputTransform);
+
+  // TODO: writing out low dim field should eventually be handled in
+  //       antsRegistrationTemplateHeader.h, and (optional) turned off with a
+  //       flag in the interface
+  // create ITK container for Fourier representation of initial velocity
+  typename ComplexFieldType::Pointer v0itk = ComplexFieldType::New();
+  typename ComplexFieldType::SizeType size;
+  size[0] = static_cast<SizeValueType>(this->m_NumFourierCoeff[0]);
+  size[1] = static_cast<SizeValueType>(this->m_NumFourierCoeff[1]);
+  size[2] = static_cast<SizeValueType>(this->m_NumFourierCoeff[2]);
+  typename ComplexFieldType::IndexType start;
+  start[0] = 0;
+  start[1] = 0;
+  start[2] = 0;
+  typename ComplexFieldType::RegionType region;
+  region.SetSize( size );
+  region.SetIndex( start );
+  v0itk->SetRegions( region );
+  v0itk->Allocate();
+  // convert pyca initial velocity to ITK and write out
+  pycaToItkComplexVectorField(*v0itk, *(this->m_v0));
+  // need something that can write out complex vector valued image
+  using WriterType = ImageFileWriter< ComplexFieldType >;
+  typename WriterType::Pointer writer = WriterType::New();
+  writer->SetInput( v0itk );
+  writer->SetFileName( "v0.nii.gz" );
+  try
+  {
+    writer->Update();
+  }
+  catch( itk::ExceptionObject & error )
+  {
+    std::cerr << "Error: " << error << std::endl;
+  }
 }
 
 
@@ -208,11 +248,11 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   // ITK displacement field and transform to hold complete transform matching moving to fixed image
   // TODO: nomenclature here is bad, don't need to keep track of fixed/moving *and* forward/inverse since it's not SyN
   //       make more self-documenting when refactor
+  this->m_completeTransform = OutputTransformType::New();
   this->m_movingToFixedInverseDisplacement = DisplacementFieldType::New();
   this->m_movingToFixedInverseDisplacement->CopyInformation( virtualDomainImage );
   this->m_movingToFixedInverseDisplacement->SetRegions( virtualDomainImage->GetRequestedRegion() );
   this->m_movingToFixedInverseDisplacement->Allocate();
-  this->m_completeTransform = OutputTransformType::New();
 
   // these ones are actually only needed for the final iteration of the final level
   this->m_fixedToMovingInverseDisplacement = DisplacementFieldType::New();
@@ -634,10 +674,31 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   Vec3Df pycaVector, pycaIdentity;
   for( Iter.GoToBegin(); !Iter.IsAtEnd(); ++Iter )
     {
-    pycaVector = pycaField.get(count);  // fixed bug, used to be this->m_phiinv (which was previously the only thing passed in, but now should work for new stuff)
+    pycaVector = pycaField.get(count);
     pycaIdentity = this->m_identity->get(count++);
     for( SizeValueType d = 0; d < ImageDimension; d++ )
       itkVector[d] = pycaVector[d] - pycaIdentity[d];
+    Iter.Set(itkVector);
+    }
+}
+
+
+template<typename TFixedImage, typename TMovingImage, typename TOutputTransform, typename TVirtualImage, typename TPointSet>
+void
+FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtualImage, TPointSet>
+::pycaToItkComplexVectorField(ComplexFieldType & itkField, FieldComplex3D & pycaField)
+{
+  ImageRegionIterator<ComplexFieldType> Iter(&itkField, (&itkField)->GetRequestedRegion());
+  SizeValueType count = 0;
+  ComplexVectorType itkVector;
+  for( Iter.GoToBegin(); !Iter.IsAtEnd(); ++Iter )
+    {
+    for( SizeValueType d = 0; d < ImageDimension; d++ )
+    {
+      itkVector[2*d] = pycaField.data[count].real();
+      itkVector[2*d+1] = pycaField.data[count].imag();
+      count++;
+    }
     Iter.Set(itkVector);
     }
 }
