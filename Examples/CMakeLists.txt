@@ -149,7 +149,7 @@ set(MORE_ANTS_APPS
     AverageAffineTransform
     AverageAffineTransformNoRigid
     AverageImages
-    simpleSynRegistration
+    # simpleSynRegistration
     CompositeTransformUtil
     CreateDisplacementField
     ConvertTransformFile
