@@ -945,6 +945,11 @@ DoRegistration(typename ParserType::Pointer & parser)
             return EXIT_FAILURE;
             }
           }
+        std::string V0Path;
+        if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
+          {
+          V0Path = transformOption->GetFunction( currentStage )->GetParameter( 6 );
+          }
         regHelper->AddFLASHTransform( learningRate, RegularizerTermWeight, LaplacianWeight,
                                       OperatorOrder, NumberOfTimeSteps, fourierSizes );
         }
