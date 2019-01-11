@@ -532,7 +532,7 @@ template <class TComputeType, unsigned VImageDimension>
 void
 RegistrationHelper<TComputeType, VImageDimension>
 ::AddFLASHTransform(RealType GradientStep, RealType RegularizerTermWeight, RealType LaplacianWeight,
-                    int OperatorOrder, int NumberOfTimeSteps, std::vector<int> FourierSizes)
+                    int OperatorOrder, int NumberOfTimeSteps, std::vector<int> FourierSizes, std::string V0Path)
 {
   TransformMethod init;
 
@@ -543,6 +543,7 @@ RegistrationHelper<TComputeType, VImageDimension>
   init.m_OperatorOrder = OperatorOrder;
   init.m_NumberOfTimeSteps = NumberOfTimeSteps;
   init.m_FourierSizes = FourierSizes;
+  init.m_V0Path = V0Path;
   this->m_TransformMethods.push_back( init );
 }
 // END: FLASH edit
@@ -3462,6 +3463,7 @@ RegistrationHelper<TComputeType, VImageDimension>
         displacementFieldRegistration->SetOperatorOrder(this->m_TransformMethods[currentStageNumber].m_OperatorOrder);
         displacementFieldRegistration->SetNumberOfTimeSteps(this->m_TransformMethods[currentStageNumber].m_NumberOfTimeSteps);
         displacementFieldRegistration->SetFourierSizes(this->m_TransformMethods[currentStageNumber].m_FourierSizes);
+        displacementFieldRegistration->SetV0Path(this->m_TransformMethods[currentStageNumber].m_V0Path);
 
         outputDisplacementFieldTransform->SetDisplacementField( displacementField );
         outputDisplacementFieldTransform->SetInverseDisplacementField( inverseDisplacementField );

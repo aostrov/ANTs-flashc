@@ -457,6 +457,7 @@ public:
     int                         m_OperatorOrder;
     int                         m_NumberOfTimeSteps;
     std::vector<int>            m_FourierSizes;
+    std::string                 m_V0Path;
     // END: FLASH edit
   };
 
@@ -636,7 +637,7 @@ public:
    * add a FLASH transform
    */
   void AddFLASHTransform(RealType GradientStep, RealType RegularizerTermWeight, RealType LaplacianWeight,
-                         int OperatorOrder, int NumberOfTimeSteps, std::vector<int> FourierSizes);
+                         int OperatorOrder, int NumberOfTimeSteps, std::vector<int> FourierSizes, std::string V0Path);
   // END: FLASH edit
 
   /**

@@ -951,7 +951,7 @@ DoRegistration(typename ParserType::Pointer & parser)
           V0Path = transformOption->GetFunction( currentStage )->GetParameter( 6 );
           }
         regHelper->AddFLASHTransform( learningRate, RegularizerTermWeight, LaplacianWeight,
-                                      OperatorOrder, NumberOfTimeSteps, fourierSizes );
+                                      OperatorOrder, NumberOfTimeSteps, fourierSizes, V0Path );
         }
         break;
       // END: FLASH edit

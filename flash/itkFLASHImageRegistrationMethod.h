@@ -255,6 +255,7 @@ protected:
   std::vector<int>                                                m_FourierSizes;
   int *                                                           m_NumFourierCoeff;
   bool                                                            m_DoRungeKuttaForIntegration;
+  std::string                                                     m_V0Path;
 
   Image3D *                                                       m_I0;
   Image3D *                                                       m_I1;
@@ -345,6 +346,15 @@ public:
   std::vector<int> GetFourierSizes() const
     {
       return m_FourierSizes;
+    }
+
+  void SetV0Path( std::string V0Path)
+    {
+      m_V0Path = V0Path;
+    }
+  std::string GetV0Path() const
+    {
+      return m_V0Path;
     }
 
   void SetCompleteTransform(OutputTransformType * completeTransform)

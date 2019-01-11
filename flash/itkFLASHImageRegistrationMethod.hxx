@@ -122,7 +122,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   using WriterType = ImageFileWriter< ComplexFieldType >;
   typename WriterType::Pointer writer = WriterType::New();
   writer->SetInput( v0itk );
-  writer->SetFileName( "v0.nii.gz" );
+  writer->SetFileName( this->m_V0Path );
   try
   {
     writer->Update();
