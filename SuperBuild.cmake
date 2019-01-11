@@ -99,6 +99,8 @@ set(EXTERNAL_PROJECT_BUILD_TYPE "Release" CACHE STRING "Default build type for s
 
 # FLASH EDIT
 option(USE_SYSTEM_PyCA "Build using an externally defined version of PyCA" ON)
+set(PyCA_DIR "" CACHE PATH "Path to PyCA build directory, where PyCAConfig.cmake is located")
+set(PyCA_SOURCE "" CACHE PATH "Path to PyCA source directory")
 # END: FLASH EDIT
 option(USE_SYSTEM_ITK "Build using an externally defined version of ITK" OFF)
 option(USE_SYSTEM_SlicerExecutionModel "Build using an externally defined version of SlicerExecutionModel"  OFF)

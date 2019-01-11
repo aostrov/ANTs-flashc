@@ -47,12 +47,12 @@ include(${ITK_USE_FILE})
 message(${ITK_USE_FILE})
 
 # FLASH EDIT
-# currently a terrible hack
-# (1) paths should not be hardcoded, should be provided by user to ccmake
-# (2) PyCA should be treated exactly like ITK in the way it is found and included
+# TODO: still needs to be improved; paths should be exposed when running ccmake and required for proper config
+#       if PyCAConfig.cmake is not found, ccmake should complain and fail the configure
+#       eventually PyCA should be treated exactly like ITK in the way it is found and included
 # looks for PyCA bin directory
-set(PyCA_DIR "/groups/scicompsoft/home/fleishmang/bin/pyca")
-set(PyCA_SOURCE "/groups/scicompsoft/home/fleishmang/source/pyca")
+# set(PyCA_DIR "" CACHE PATH "Path to PyCA build directory, where PyCAConfig.cmake is located")
+# set(PyCA_SOURCE "" CACHE PATH "Path to PyCA source directory")
 IF(PyCA_DIR)
   INCLUDE(${PyCA_DIR}/PyCAConfig.cmake)
   INCLUDE_DIRECTORIES(${PyCA_INCLUDE_DIRECTORIES})
