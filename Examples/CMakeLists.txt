@@ -83,6 +83,7 @@ set(CORE_ANTS_APPS
 )
 
 set(MORE_ANTS_APPS
+    reconstructFlashTransforms  # FLASH EDIT
     antsAI
     antsJointTensorFusion
     ImageMath

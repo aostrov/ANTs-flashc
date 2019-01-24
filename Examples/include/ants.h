@@ -233,4 +233,6 @@
 
 #include "TextureCooccurrenceFeatures.h"
 
+#include "reconstructFlashTransforms.h"  // FLASH EDIT
+
 #endif // ants_h
