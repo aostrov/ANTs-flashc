@@ -21,6 +21,13 @@
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 #include "FieldComplex3D.h"
+#include "FftOper.h"
+#include "IOpers.h"
+#include "FOpers.h"
+#include "IFOpers.h"
+#include "HFOpers.h"
+#include "Reduction.h"
+#include "FluidKernelFFT.h"
 
 
 namespace ants
@@ -29,8 +36,9 @@ namespace ants
 const int ImageDimension = 3; // TODO: generalize
 typedef itk::Vector< float, ImageDimension*2 >                           ComplexVectorType;
 typedef itk::Image< ComplexVectorType, ImageDimension >                  ComplexFieldType;
-typedef itk::Vector< float, ImageDimension >                             PixelType;
-typedef itk::Image< PixelType, ImageDimension >                          ImageType;
+typedef itk::Image< float, ImageDimension >                              ReferenceImageType;
+typedef itk::Vector< float, ImageDimension >                             DisplacementVectorType;
+typedef itk::Image< DisplacementVectorType, ImageDimension >             DisplacementFieldType;
 
 
 void itkToPycaComplexVectorField(ComplexFieldType & itkField, FieldComplex3D & pycaField)
@@ -61,7 +69,7 @@ void itkToPycaComplexVectorField(ComplexFieldType & itkField, FieldComplex3D & p
 //   for( Iter.GoToBegin(); !Iter.IsAtEnd(); ++Iter )
 //     {
 //     pycaVector = pycaField.get(count);
-//     pycaIdentity = this->m_identity->get(count++);
+//     pycaIdentity = identity->get(count++);
 //     for( SizeValueType d = 0; d < ImageDimension; d++ )
 //       itkVector[d] = pycaVector[d] - pycaIdentity[d];
 //     Iter.Set(itkVector);
@@ -72,58 +80,63 @@ void itkToPycaComplexVectorField(ComplexFieldType & itkField, FieldComplex3D & p
 /************************* geodesic shooting functions *****************************************
 ************************************************************************************************/
 
-void ForwardIntegration()
+void ForwardIntegration(FieldComplex3D & v0, FieldComplex3D ** velocityFlowField, int time_steps,
+	                      FieldComplex3D & inverseTransform,
+	                      FieldComplex3D * JacX, FieldComplex3D * JacY, FieldComplex3D * JacZ,
+	                      FieldComplex3D & intermediateFourierDomain)
 {
+	// compute time step size
+  float time_step_size = 1.0/time_steps;
   // obtain velocity flow with EPDiff in Fourier domain
-  Copy_FieldComplex(*(this->m_VelocityFlowField[0]), *(this->m_v0));
-  if (this->m_DoRungeKuttaForIntegration)
-  {
-    for (int i = 1; i <= this->m_NumberOfTimeSteps; i++)
-      RungeKuttaStep(this->m_scratch1, this->m_scratch2, this->m_scratch3,
-                     this->m_VelocityFlowField[i-1], this->m_VelocityFlowField[i],
-                     this->m_TimeStepSize);
-  }
-  else
-  {
-    for (int i = 1; i <= this->m_NumberOfTimeSteps; i++)
-      EulerStep(this->m_scratch1,
-                this->m_VelocityFlowField[i-1],
-                this->m_VelocityFlowField[i],
-                this->m_TimeStepSize);
-  }
+  Copy_FieldComplex(*(velocityFlowField[0]), v0);
+  // if (DoRungeKuttaForIntegration)
+  // {
+  //   for (int i = 1; i <= NumberOfTimeSteps; i++)
+  //     RungeKuttaStep(scratch1, scratch2, scratch3,
+  //                    velocityFlowField[i-1], velocityFlowField[i],
+  //                    TimeStepSize);
+  // }
+  // else
+  // {
+    for (int i = 1; i <= numberOfTimeSteps; i++)
+      EulerStep(intermediateFourierDomain,
+                velocityFlowField[i-1],
+                velocityFlowField[i],
+                time_step_size);
+  // }
 
   // integrate velocity flow through advection equation to obtain inverse of path endpoint
-  this->m_scratch1->initVal(complex<float>(0.0, 0.0)); // displacement field
-  for (int i = 0; i < this->m_NumberOfTimeSteps; i++)
-    AdvectionStep(this->m_JacX, this->m_JacY, this->m_JacZ,
-                  this->m_scratch1, this->m_scratch2,
-                  this->m_VelocityFlowField[i],
-                  this->m_TimeStepSize);
+  inverseTransform->initVal(complex<float>(0.0, 0.0)); // displacement field
+  for (int i = 0; i < time_steps; i++)
+    AdvectionStep(JacX, JacY, JacZ,
+                  inverseTransform, intermediateFourierDomain,
+                  velocityFlowField[i],
+                  time_step_size);
 
   // obtain spatial domain transform, convert to ITK field
-  this->m_fftoper->fourier2spatial_addH(*(this->m_phiinv),
-                                        *(this->m_scratch1),
-                                        this->idxf, this->idyf, this->idzf);
-  pycaToItkVectorField(*(this->m_movingToFixedInverseDisplacement), *(this->m_phiinv));
+  fftoper->fourier2spatial_addH(*(phiinv),
+                                *(scratch1),
+                                idxf, idyf, idzf);
+  pycaToItkVectorField(*(inverseDisplacement), *(phiinv));
 
-	for (int i = 0; i < this->m_NumberOfTimeSteps; i++)
-	  ForwardTransformStep(this->m_fixedToMovingInverseDisplacement,
-	                       this->m_spatialVitk,
-	                       this->m_scratchV1,
-	                       this->m_VelocityFlowField[i],
-	                       this->m_TimeStepSize);
+	for (int i = 0; i < NumberOfTimeSteps; i++)
+	  ForwardTransformStep(forwardDisplacement,
+	                       spatialVitk,
+	                       scratchV1,
+	                       velocityFlowField[i],
+	                       TimeStepSize);
 }
 
 
 // /************************* numerical method and operator functions *****************************
 // ************************************************************************************************/
 
-// void RungeKuttaStep(FieldComplex3D * sf1, FieldComplex3D * sf2, FieldComplex3D * sf3,
-//                  FieldComplex3D * vff1, FieldComplex3D * vff2, float dt)
-// // sf: scratch field (preallocated memory to store intermediate calculations)
-// // vff: velocity flow field (vff1: i-1, vff2: i)
-// // dt: time step size
-// {
+void RungeKuttaStep(FieldComplex3D * sf1, FieldComplex3D * sf2, FieldComplex3D * sf3,
+                 FieldComplex3D * vff1, FieldComplex3D * vff2, float dt)
+// sf: scratch field (preallocated memory to store intermediate calculations)
+// vff: velocity flow field (vff1: i-1, vff2: i)
+// dt: time step size
+{
 //   // v1 = v0 - (dt/6) * (k1 + 2*k2 + 2*k3 + k4)
 //   // k1
 //   adTranspose(*sf1, *vff1, *vff1);
@@ -148,45 +161,45 @@ void ForwardIntegration()
 //   adTranspose(*sf2, *sf3, *sf3);
 //   // finish updating v1 = v1 - (dt/6)*k4
 //   AddI_FieldComplex(*vff2, *sf2, -dt / 6.0);
-// }
+}
 
 
-// void EulerStep(FieldComplex3D * sf1, FieldComplex3D * vff1, FieldComplex3D * vff2, float dt)
-// // sf: scratch field (preallocated memory to store intermediate calculations)
-// // vff: velocity flow field (vff1: i-1, vff2: i)
-// // dt: time step size
-// {
+void EulerStep(FieldComplex3D * sf1, FieldComplex3D * vff1, FieldComplex3D * vff2, float dt)
+// sf: scratch field (preallocated memory to store intermediate calculations)
+// vff: velocity flow field (vff1: i-1, vff2: i)
+// dt: time step size
+{
 //   // v0 = v0 - dt * adTranspose(v0, v0)
 //   Copy_FieldComplex(*vff2, *vff1);
 //   adTranspose(*sf1, *vff2, *vff2);
 //   AddI_FieldComplex(*vff2, *sf1, -dt);
-// }
+}
 
 
-// void AdvectionStep(FieldComplex3D * JacX, FieldComplex3D * JacY, FieldComplex3D * JacZ,
-//                 FieldComplex3D * sf1, FieldComplex3D * sf2, FieldComplex3D * vff,
-//                 float dt)
-// // sf: scratch field (preallocated memory to store intermediate calculations)
-// // vff: velocity flow field
-// // dt: time step size
-// {
-//   Jacobian(*JacX, *JacY, *JacZ, *(this->m_fftoper->CDcoeff), *sf1);
-//   this->m_fftoper->ConvolveComplexFFT(*sf2, 0, *JacX, *JacY, *JacZ, *vff);
+void AdvectionStep(FieldComplex3D * JacX, FieldComplex3D * JacY, FieldComplex3D * JacZ,
+                FieldComplex3D * sf1, FieldComplex3D * sf2, FieldComplex3D * vff,
+                float dt)
+// sf: scratch field (preallocated memory to store intermediate calculations)
+// vff: velocity flow field
+// dt: time step size
+{
+//   Jacobian(*JacX, *JacY, *JacZ, *(fftoper->CDcoeff), *sf1);
+//   fftoper->ConvolveComplexFFT(*sf2, 0, *JacX, *JacY, *JacZ, *vff);
 //   AddIMul_FieldComplex(*sf1, *sf2, *vff, -dt);
-// }
+}
 
 
-// void ForwardTransformStep(DisplacementFieldType * displacement, DisplacementFieldType * spatialVitk, Field3D * spatialV, FieldComplex3D * vff, float dt)
-// // displacement: ITK displacement field object holding current forward displacement field
-// // spatialVitk: ITK displacement field object to hold spatial velocity as an ITK object
-// // spatialV: pyca Field3D to hold velocity in spatial domain
-// // vff: velocity flow field for current time step
-// // dt: time step size
-// {
+void ForwardTransformStep(DisplacementFieldType * displacement, DisplacementFieldType * spatialVitk, Field3D * spatialV, FieldComplex3D * vff, float dt)
+// displacement: ITK displacement field object holding current forward displacement field
+// spatialVitk: ITK displacement field object to hold spatial velocity as an ITK object
+// spatialV: pyca Field3D to hold velocity in spatial domain
+// vff: velocity flow field for current time step
+// dt: time step size
+{
 //   // phi_t = phi_{t-1} + dt * invFFT(v_t) o phi_{t-1}
 //   // get spatial velocity as ITK object
 //   // adding identity, then stripping it off in pycaToItkVectorField is wasteful, but we only compute forward transform once
-//   this->m_fftoper->fourier2spatial_addH(*spatialV, *vff, this->idxf, this->idyf, this->idzf);
+//   fftoper->fourier2spatial_addH(*spatialV, *vff, idxf, idyf, idzf);
 //   pycaToItkVectorField(*spatialVitk, *spatialV);
 //   // move Eulerian velocity to Lagrangian velocity with current value of displacement
 //   using warpType = WarpVectorImageFilter<DisplacementFieldType, DisplacementFieldType, DisplacementFieldType>;
@@ -209,32 +222,32 @@ void ForwardIntegration()
 //   composer->SetDisplacementField( multiplier->GetOutput() );
 //   composer->SetWarpingField( displacement );
 //   composer->Update();
-//   this->m_fixedToMovingInverseDisplacement = composer->GetOutput();
-// }
+//   forwardDisplacement = composer->GetOutput();
+}
 
 
-// // adTranspose
-// // spatial domain: K(Dv^T Lw + div(L*w x v))
-// // K*(CorrComplexFFT(CD*v^T, L*w) + TensorCorr(L*w, v) * D)
-// void adTranspose(FieldComplex3D & adTransvw, const FieldComplex3D & v, const FieldComplex3D & w)
-// {
-//      Mul_FieldComplex(*(this->m_adScratch1),
-//                       *(this->m_fftoper->Lcoeff), w);
-//      JacobianT(*(this->m_JacX),
-//                *(this->m_JacY),
-//                *(this->m_JacZ),
-//                *(this->m_fftoper->CDcoeff), v); 
-//      this->m_fftoper->ConvolveComplexFFT(adTransvw, 1,
-//                                          *(this->m_JacX),
-//                                          *(this->m_JacY),
-//                                          *(this->m_JacZ),
-//                                          *(this->m_adScratch1));
-//      this->m_fftoper->CorrComplexFFT(*(this->m_adScratch2), v,
-//                                      *(this->m_adScratch1),
-//                                      *(this->m_fftoper->CDcoeff));
-//      AddI_FieldComplex(adTransvw, *(this->m_adScratch2), 1.0);
-//      MulI_FieldComplex(adTransvw, *(this->m_fftoper->Kcoeff));
-// }
+// adTranspose
+// spatial domain: K(Dv^T Lw + div(L*w x v))
+// K*(CorrComplexFFT(CD*v^T, L*w) + TensorCorr(L*w, v) * D)
+void adTranspose(FieldComplex3D & adTransvw, const FieldComplex3D & v, const FieldComplex3D & w)
+{
+//      Mul_FieldComplex(*(adScratch1),
+//                       *(fftoper->Lcoeff), w);
+//      JacobianT(*(JacX),
+//                *(JacY),
+//                *(JacZ),
+//                *(fftoper->CDcoeff), v); 
+//      fftoper->ConvolveComplexFFT(adTransvw, 1,
+//                                          *(JacX),
+//                                          *(JacY),
+//                                          *(JacZ),
+//                                          *(adScratch1));
+//      fftoper->CorrComplexFFT(*(adScratch2), v,
+//                                      *(adScratch1),
+//                                      *(fftoper->CDcoeff));
+//      AddI_FieldComplex(adTransvw, *(adScratch2), 1.0);
+//      MulI_FieldComplex(adTransvw, *(fftoper->Kcoeff));
+}
 
 
 void reconstructFlashTransforms(char * velocity_field_filename,
@@ -256,20 +269,75 @@ void reconstructFlashTransforms(char * velocity_field_filename,
   // Read reference image
   // TODO: may not actually need to read in the data, maybe IOFactory thing (see WarpImageMultiTransform, before call to actual function)
   //       it can grab the kinds of params I need without reading in the image data
-  typedef itk::ImageFileReader<ImageType> ImageReaderType;
+  typedef itk::ImageFileReader<ReferenceImageType> ImageReaderType;
   typename ImageReaderType::Pointer reference_reader = ImageReaderType::New();
   reference_reader->SetFileName(reference_image_filename);
   reference_reader->Update();
-  typename ImageType::Pointer reference_image = reference_reader->GetOutput();
-  typename ImageType::SizeType reference_dims = reference_image->GetLargestPossibleRegion().GetSize();
-  typename ImageType::SpacingType reference_spacing = reference_image->GetSpacing();
-  typename ImageType::PointType reference_origin = reference_image->GetOrigin();
+  typename ReferenceImageType::Pointer reference_image = reference_reader->GetOutput();
+  typename ReferenceImageType::SizeType reference_dims = reference_image->GetLargestPossibleRegion().GetSize();
+  typename ReferenceImageType::SpacingType reference_spacing = reference_image->GetSpacing();
+  typename ReferenceImageType::PointType reference_origin = reference_image->GetOrigin();
 
   // convert V0 to pyca FieldComplex3D object
   FieldComplex3D * v0 = new FieldComplex3D(v0_dims[0], v0_dims[1], v0_dims[2]);  // TODO: generalize for image dimension?
   itkToPycaComplexVectorField(*v0_itk, *v0);
 
-  // set up objects for forward integration
+  // initialize objects for forward integration
+  // inverse displacement field, itk
+  typename DisplacementFieldType::Pointer inverseDisplacement = DisplacementFieldType::New();
+  inverseDisplacement->CopyInformation( reference_image );
+  inverseDisplacement->SetRegions( reference_image->GetRequestedRegion() );
+  inverseDisplacement->Allocate();
+
+  // forward displacement field, itk
+  typename DisplacementFieldType::Pointer forwardDisplacement = DisplacementFieldType::New();
+  forwardDisplacement->CopyInformation( reference_image );
+  forwardDisplacement->SetRegions( reference_image->GetRequestedRegion() );
+  forwardDisplacement->Allocate();
+
+  GridInfo grid = GridInfo(Vec3Di(reference_dims[0], reference_dims[1], reference_dims[2]),
+                           Vec3Df(reference_spacing[0], reference_spacing[1], reference_spacing[2]),
+                           Vec3Df(reference_origin[0], reference_origin[1], reference_origin[2]));
+  float identity_weight = 1.0;
+  FftOper * fftoper = new FftOper(laplace_weight,
+                                  identity_weight,
+                                  operator_order,
+                                  grid, v0_dims[0], v0_dims[1], v0_dims[2]);
+  fftoper->FourierCoefficient();
+
+  // velocity in spatial domain, itk
+  typename DisplacementFieldType::Pointer spatialVitk = DisplacementFieldType::New();
+  spatialVitk->CopyInformation( reference_image );
+  spatialVitk->SetRegions( reference_image->GetRequestedRegion() );
+  spatialVitk->Allocate();
+
+  // the velocity flow field in time, pyca
+  FieldComplex3D ** velocityFlowField = new FieldComplex3D * [time_steps + 1];
+  for (int i = 0; i <= time_steps; i++)
+    velocityFlowField[i] = new FieldComplex3D(v0_dims[0], v0_dims[1], v0_dims[2]);
+
+  // identity field in the Fourier domain, pyca
+  // TODO: tons of variables in here that need to be set up first: grid, mType, fftoper, identity
+  Field3D * identity = new Field3D(grid, MEM_HOST);
+  Opers::SetToIdentity(*(identity));
+  float * idxf = new float[2 * fftoper->fsxFFT * fftoper->fsy * fftoper->fsz];
+  float * idyf = new float[2 * fftoper->fsxFFT * fftoper->fsy * fftoper->fsz];
+  float * idzf = new float[2 * fftoper->fsxFFT * fftoper->fsy * fftoper->fsz];
+  fftoper->spatial2fourier_F(idxf, idyf, idzf, *(identity));
+
+  // fields to hold Jacobian components, pyca
+  FieldComplex3D * JacX = new FieldComplex3D(v0_dims[0], v0_dims[1], v0_dims[2]);
+  FieldComplex3D * JacY = new FieldComplex3D(v0_dims[0], v0_dims[1], v0_dims[2]);
+  FieldComplex3D * JacZ = new FieldComplex3D(v0_dims[0], v0_dims[1], v0_dims[2]);
+
+  // Fourier domain scratch fields, pyca
+  FieldComplex3D * inverseTransformFourierDomainPyca = new FieldComplex3D(v0_dims[0], v0_dims[1], v0_dims[2]);
+  FieldComplex3D * intermediateFourierDomain = new FieldComplex3D(v0_dims[0], v0_dims[1], v0_dims[2]);
+
+  // some scratch memory in the spatial domain, pyca
+  Field3D * scratchV1 = new Field3D(grid, MEM_HOST);
+  Field3D * inverseTransformFourierDomainItk = new Field3D(grid, MEM_HOST);
+
 
 
 
