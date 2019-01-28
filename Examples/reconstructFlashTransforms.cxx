@@ -20,599 +20,271 @@
 
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
+#include "FieldComplex3D.h"
 
 
 namespace ants
 {
 
-// static bool reconstructFlashTransforms_ParseInput(int argc, char * *argv, char *& moving_image_filename,
-//                                                char *& output_image_filename,
-//                                                TRAN_OPT_QUEUE & opt_queue, MISC_OPT & misc_opt,
-//                                                int NDimensions)
+const int ImageDimension = 3; // TODO: generalize
+typedef itk::Vector< float, ImageDimension*2 >                           ComplexVectorType;
+typedef itk::Image< ComplexVectorType, ImageDimension >                  ComplexFieldType;
+typedef itk::Vector< float, ImageDimension >                             PixelType;
+typedef itk::Image< PixelType, ImageDimension >                          ImageType;
+
+
+void itkToPycaComplexVectorField(ComplexFieldType & itkField, FieldComplex3D & pycaField)
+{
+  itk::ImageRegionIterator<ComplexFieldType> Iter(&itkField, (&itkField)->GetRequestedRegion());
+  ComplexVectorType itkVector;
+  complex<float> component;
+  itk::SizeValueType count = 0;
+  for( Iter.GoToBegin(); !Iter.IsAtEnd(); ++Iter )
+    {
+    itkVector = Iter.Get();
+    for( itk::SizeValueType d = 0; d < ImageDimension; d++ )
+      {
+      component.real(itkVector[2*d]);
+      component.imag(itkVector[2*d+1]);
+      pycaField.data[count] = component;
+      count++;
+      }
+    }
+}
+
+// void pycaToItkVectorField(DisplacementFieldType & itkField, Field3D & pycaField)
 // {
-//   opt_queue.clear();
-//   opt_queue.reserve(argc - 2);
-
-//   misc_opt.reference_image_filename = ITK_NULLPTR;
-//   misc_opt.use_BSpline_interpolator = false;
-//   misc_opt.use_TightestBoundingBox = false;
-//   misc_opt.use_RotationHeader = false;
-
-//   misc_opt.use_NN_interpolator = false;
-//   misc_opt.use_MultiLabel_interpolator = false;
-//   misc_opt.use_BSpline_interpolator = false;
-
-//   moving_image_filename = argv[0];
-//   output_image_filename = argv[1];
-
-//   int  ind = 2;
-//   bool set_current_affine_inv = false;
-
-//   while( ind < argc )
+//   ImageRegionIterator<DisplacementFieldType> Iter(&itkField, (&itkField)->GetRequestedRegion());
+//   SizeValueType count = 0;
+//   DisplacementVectorType itkVector;
+//   Vec3Df pycaVector, pycaIdentity;
+//   for( Iter.GoToBegin(); !Iter.IsAtEnd(); ++Iter )
 //     {
-//     if( strcmp(argv[ind], "--use-NN") == 0 )
-//       {
-//       misc_opt.use_NN_interpolator = true;
-//       }
-//     else if( strcmp(argv[ind], "--use-BSpline") == 0 )
-//       {
-//       misc_opt.use_BSpline_interpolator = true;
-//       }
-//     else if( strcmp(argv[ind], "--use-ML") == 0 )
-//       {
-//       misc_opt.use_MultiLabel_interpolator = true;
-//       ind++; if( ind >= argc )
-//         {
-//         return false;
-//         }
-
-//       char *s = argv[ind];
-//       if( strlen(s) > 3 && strcmp(s + strlen(s) - 3, "vox") == 0 )
-//         {
-//         misc_opt.opt_ML.physical_units = false;
-//         s[strlen(s) - 3] = 0;
-//         }
-//       else if( strlen(s) > 2 && strcmp(s + strlen(s) - 2, "mm") == 0 )
-//         {
-//         misc_opt.opt_ML.physical_units = true;
-//         s[strlen(s) - 2] = 0;
-//         }
-//       else
-//         {
-//         std::cout << "Wrong specification of sigma in --use-ML. Must end with 'mm' or 'vox'" << std::endl;
-//         return false;
-//         }
-
-//       misc_opt.opt_ML.sigma.resize(NDimensions);
-//       if( strchr(s, 'x') )
-//         {
-//         char *tok = strtok(s, "x");
-//         int i = 0;
-//         while( tok!=ITK_NULLPTR && i<NDimensions )
-//           {
-//           double x = atof(tok);
-//           if( x < 0 )
-//             {
-//             std::cout << "Negative sigma specification:" << s << std::endl;
-//             }
-//           misc_opt.opt_ML.sigma[i] = x;
-//           tok = strtok(ITK_NULLPTR, "x");
-//           ++i;
-//           }
-//         if( i!=NDimensions || tok!=ITK_NULLPTR )
-//           {
-//           std::cout << "Invalid sigma specification:" << s << std::endl;
-//           }
-//         }
-//       else
-//         {
-//         double x = atof(s);
-//         if( x < 0 )
-//           {
-//           std::cout << "Negative sigma specification:" << s << std::endl;
-//           }
-//         misc_opt.opt_ML.sigma.resize(NDimensions);
-//         std::fill(misc_opt.opt_ML.sigma.begin(), misc_opt.opt_ML.sigma.end(), x);
-//         }
-//       }
-
-//     else if( strcmp(argv[ind], "-R") == 0 )
-//       {
-//       ind++; if( ind >= argc )
-//         {
-//         return false;
-//         }
-//       misc_opt.reference_image_filename = argv[ind];
-//       }
-//     else if( (strcmp(argv[ind], "--tightest-bounding-box") == 0) &&  (strcmp(argv[ind], "-R") != 0)  )
-//       {
-//       misc_opt.use_TightestBoundingBox = true;
-//       }
-//     else if( strcmp(argv[ind], "--reslice-by-header") == 0 )
-//       {
-//       misc_opt.use_RotationHeader = true;
-//       TRAN_OPT opt;
-//       opt.file_type = IMAGE_AFFINE_HEADER;
-//       opt.do_affine_inv = false;
-//       opt_queue.push_back(opt);
-//       }
-//     else if( strcmp(argv[ind], "--Id") == 0 )
-//       {
-//       TRAN_OPT opt;
-//       opt.filename = "--Id";
-//       opt.do_affine_inv = false;
-//       opt.file_type = IDENTITY_TRANSFORM;
-//       opt_queue.push_back(opt);
-//       }
-//     else if( strcmp(argv[ind], "--moving-image-header") == 0 || strcmp(argv[ind], "-mh") == 0 )
-//       {
-//       TRAN_OPT opt;
-//       opt.file_type = IMAGE_AFFINE_HEADER;
-//       opt.filename = moving_image_filename;
-//       //            opt.do_affine_inv = false;
-//       SetAffineInvFlag(opt, set_current_affine_inv);
-//       opt_queue.push_back(opt);
-//       }
-//     else if( strcmp(argv[ind], "--reference-image-header") == 0 || strcmp(argv[ind], "-rh") == 0 )
-//       {
-//       if( misc_opt.reference_image_filename == ITK_NULLPTR )
-//         {
-//         std::cout
-//           << "reference image filename is not given yet. Specify it with -R before --reference-image-header / -rh."
-//           << std::endl;
-//         return false;
-//         }
-
-//       TRAN_OPT opt;
-//       opt.file_type = IMAGE_AFFINE_HEADER;
-//       opt.filename = misc_opt.reference_image_filename;
-//       //            opt.do_affine_inv = false;
-//       SetAffineInvFlag(opt, set_current_affine_inv);
-//       opt_queue.push_back(opt);
-//       }
-//     else if( strcmp(argv[ind], "-i") == 0 )
-//       {
-//       set_current_affine_inv = true;
-//       }
-
-//     else if( strcmp(argv[ind], "--ANTS-prefix") == 0 )
-//       {
-//       ind++;
-//       std::string prefix = argv[ind];
-//       std::string path, name, ext;
-//       FilePartsWithgz(prefix, path, name, ext);
-//       if( ext == "" )
-//         {
-//         ext = ".nii.gz";
-//         }
-
-//       std::string deform_file_name, x_deform_name;
-//       deform_file_name = path + name + std::string("Warp") + ext;
-//       x_deform_name = path + name + std::string("Warpxvec") + ext;
-//       if( CheckFileExistence(x_deform_name.c_str() ) )
-//         {
-//         TRAN_OPT opt;
-//         opt.filename = deform_file_name.c_str();
-//         opt.file_type = CheckFileType(opt.filename.c_str() );
-//         opt.do_affine_inv = false;
-//         opt_queue.push_back(opt);
-//         std::cout << "found deformation file: " << opt.filename << std::endl;
-//         DisplayOpt(opt);
-//         }
-
-//       std::string affine_file_name;
-//       affine_file_name = path + name + std::string("Affine") + GetPreferredTransformFileType();
-//       if( CheckFileExistence(affine_file_name.c_str() ) )
-//         {
-//         TRAN_OPT opt;
-//         opt.filename = affine_file_name.c_str();
-//         opt.file_type = CheckFileType(opt.filename.c_str() );
-//         opt.do_affine_inv = false;
-//         opt_queue.push_back(opt);
-//         std::cout << "found affine file: " << opt.filename << std::endl;
-//         DisplayOpt(opt);
-//         }
-//       }
-//     else if( strcmp(argv[ind], "--ANTS-prefix-invert") == 0 )
-//       {
-//       ind++;
-//       std::string prefix = argv[ind];
-//       std::string path, name, ext;
-//       FilePartsWithgz(prefix, path, name, ext);
-//       if( ext == "" )
-//         {
-//         ext = ".nii.gz";
-//         }
-
-//       std::string affine_file_name;
-//       affine_file_name = path + name + std::string("Affine") + GetPreferredTransformFileType();
-//       if( CheckFileExistence(affine_file_name.c_str() ) )
-//         {
-//         TRAN_OPT opt;
-//         opt.filename = affine_file_name.c_str();
-//         opt.file_type = CheckFileType(opt.filename.c_str() );
-//         opt.do_affine_inv = true;
-//         opt_queue.push_back(opt);
-//         std::cout << "found affine file: " << opt.filename << std::endl;
-//         DisplayOpt(opt);
-//         }
-
-//       std::string deform_file_name, x_deform_name;
-//       deform_file_name = path + name + std::string("InverseWarp.nii.gz");
-//       x_deform_name = path + name + std::string("InverseWarpxvec.nii.gz");
-//       if( CheckFileExistence(x_deform_name.c_str() ) )
-//         {
-//         TRAN_OPT opt;
-//         opt.filename = deform_file_name.c_str();
-//         opt.file_type = CheckFileType(opt.filename.c_str() );
-//         opt.do_affine_inv = false;
-//         opt_queue.push_back(opt);
-//         std::cout << "found deformation file: " << opt.filename << std::endl;
-//         DisplayOpt(opt);
-//         }
-//       }
-//     else
-//       {
-//       TRAN_OPT opt;
-//       opt.filename = argv[ind];
-//       opt.file_type = CheckFileType(opt.filename.c_str() );
-//       opt.do_affine_inv = false;
-//       if( opt.file_type == AFFINE_FILE )
-//         {
-//         SetAffineInvFlag(opt, set_current_affine_inv);
-//         }
-//       else if( opt.file_type == DEFORMATION_FILE && set_current_affine_inv )
-//         {
-//         std::cout << "Ignore inversion of non-affine file type! " << std::endl;
-//         std::cout << "opt.do_affine_inv:" << opt.do_affine_inv << std::endl;
-//         }
-
-//       opt_queue.push_back(opt);
-//       DisplayOpt(opt);
-//       }
-//     ind++;
+//     pycaVector = pycaField.get(count);
+//     pycaIdentity = this->m_identity->get(count++);
+//     for( SizeValueType d = 0; d < ImageDimension; d++ )
+//       itkVector[d] = pycaVector[d] - pycaIdentity[d];
+//     Iter.Set(itkVector);
 //     }
-
-//   if( misc_opt.use_RotationHeader )
-//     {
-//     //                if (misc_opt.reference_image_filename) {
-//     //                    opt_queue[0].filename = misc_opt.reference_image_filename;
-//     //                } else {
-//     opt_queue[0].filename = "--Id";
-//     opt_queue[0].file_type = IDENTITY_TRANSFORM;
-//     opt_queue[0].do_affine_inv = false;
-//     //                }
-
-//     //               TRAN_OPT opt;
-//     //               opt.file_type = IMAGE_AFFINE_HEADER;
-//     //               opt.filename = moving_image_filename;
-//     //               opt.do_affine_inv = true;
-//     //               opt_queue.push_back(opt);
-//     //
-//     //               std::cout << "Use Rotation Header!" << std::endl;
-//     }
-
-//   return true;
 // }
 
 
-// template <int ImageDimension, unsigned int NVectorComponents>
-// void reconstructFlashTransforms(char *moving_image_filename, char *output_image_filename,
-//                                 TRAN_OPT_QUEUE & opt_queue, MISC_OPT & misc_opt)
+/************************* geodesic shooting functions *****************************************
+************************************************************************************************/
+
+void ForwardIntegration()
+{
+  // obtain velocity flow with EPDiff in Fourier domain
+  Copy_FieldComplex(*(this->m_VelocityFlowField[0]), *(this->m_v0));
+  if (this->m_DoRungeKuttaForIntegration)
+  {
+    for (int i = 1; i <= this->m_NumberOfTimeSteps; i++)
+      RungeKuttaStep(this->m_scratch1, this->m_scratch2, this->m_scratch3,
+                     this->m_VelocityFlowField[i-1], this->m_VelocityFlowField[i],
+                     this->m_TimeStepSize);
+  }
+  else
+  {
+    for (int i = 1; i <= this->m_NumberOfTimeSteps; i++)
+      EulerStep(this->m_scratch1,
+                this->m_VelocityFlowField[i-1],
+                this->m_VelocityFlowField[i],
+                this->m_TimeStepSize);
+  }
+
+  // integrate velocity flow through advection equation to obtain inverse of path endpoint
+  this->m_scratch1->initVal(complex<float>(0.0, 0.0)); // displacement field
+  for (int i = 0; i < this->m_NumberOfTimeSteps; i++)
+    AdvectionStep(this->m_JacX, this->m_JacY, this->m_JacZ,
+                  this->m_scratch1, this->m_scratch2,
+                  this->m_VelocityFlowField[i],
+                  this->m_TimeStepSize);
+
+  // obtain spatial domain transform, convert to ITK field
+  this->m_fftoper->fourier2spatial_addH(*(this->m_phiinv),
+                                        *(this->m_scratch1),
+                                        this->idxf, this->idyf, this->idzf);
+  pycaToItkVectorField(*(this->m_movingToFixedInverseDisplacement), *(this->m_phiinv));
+
+	for (int i = 0; i < this->m_NumberOfTimeSteps; i++)
+	  ForwardTransformStep(this->m_fixedToMovingInverseDisplacement,
+	                       this->m_spatialVitk,
+	                       this->m_scratchV1,
+	                       this->m_VelocityFlowField[i],
+	                       this->m_TimeStepSize);
+}
+
+
+// /************************* numerical method and operator functions *****************************
+// ************************************************************************************************/
+
+// void RungeKuttaStep(FieldComplex3D * sf1, FieldComplex3D * sf2, FieldComplex3D * sf3,
+//                  FieldComplex3D * vff1, FieldComplex3D * vff2, float dt)
+// // sf: scratch field (preallocated memory to store intermediate calculations)
+// // vff: velocity flow field (vff1: i-1, vff2: i)
+// // dt: time step size
 // {
-//   typedef float RealType;
-//   typedef itk::Vector<RealType,
-//                       NVectorComponents>                                                             PixelType;
-//   typedef itk::Image<PixelType,
-//                      ImageDimension>                                                                ImageType;
-//   typedef itk::VectorImage<RealType,
-//                            ImageDimension>                                                           RefImageType;
-//   typedef itk::Vector<RealType,
-//                       ImageDimension>                                                                VectorType;
-//   typedef itk::Image<VectorType,
-//                      ImageDimension>
-//     DisplacementFieldType;
-//   typedef itk::MatrixOffsetTransformBase<double, ImageDimension,
-//                                          ImageDimension>                               AffineTransformType;
-//   typedef itk::WarpImageMultiTransformFilter<ImageType, ImageType, DisplacementFieldType,
-//                                              AffineTransformType> WarperType;
-
-//   itk::TransformFactory<AffineTransformType>::RegisterTransform();
-
-//   typedef itk::ImageFileReader<ImageType>    ImageFileReaderType;
-//   typedef itk::ImageFileReader<RefImageType> VectorImageFileReaderType;
-//   typename ImageFileReaderType::Pointer reader_img = ImageFileReaderType::New();
-//   reader_img->SetFileName(moving_image_filename);
-//   reader_img->Update();
-//   typename ImageType::Pointer img_mov = reader_img->GetOutput();
-
-//   typename RefImageType::Pointer img_ref;
-
-//   typename VectorImageFileReaderType::Pointer reader_img_ref = VectorImageFileReaderType::New();
-//   if( misc_opt.reference_image_filename )
-//     {
-//     reader_img_ref->SetFileName(misc_opt.reference_image_filename);
-//     reader_img_ref->Update();
-//     img_ref = reader_img_ref->GetOutput();
-//     }
-//   // else
-//   //    img_ref = ITK_NULLPTR;
-
-//   typename WarperType::Pointer  warper = WarperType::New();
-//   warper->SetInput(img_mov);
-//   PixelType zero; zero.Fill(0);
-//   warper->SetEdgePaddingValue( zero );
-
-//   if( misc_opt.use_NN_interpolator )
-//     {
-//     typedef typename itk::NearestNeighborInterpolateImageFunction<ImageType,
-//                                                                   typename WarperType::CoordRepType> NNInterpolateType;
-//     typename NNInterpolateType::Pointer interpolator_NN = NNInterpolateType::New();
-//     std::cout << "User nearest neighbor interpolation (was Haha) " << std::endl;
-//     warper->SetInterpolator(interpolator_NN);
-//     }
-//   else if( misc_opt.use_MultiLabel_interpolator )
-//     {
-//     std::cout << " Need to fix in main itk repository " << std::endl;
-// //      typedef VectorPixelCompare<RealType, NVectorComponents> CompareType;
-// //      typedef typename itk::LabelImageGaussianInterpolateImageFunction<ImageType,
-// //                                                                       typename WarperType::CoordRepType,
-// //                                                                       CompareType> MLInterpolateType;
-// //      typename MLInterpolateType::Pointer interpolator_ML = MLInterpolateType::New();
-// //
-// //
-// //      std::cout << "Using multi-label anti-aliasing interpolation " << std::endl;
-// //      vnl_vector_fixed<double, ImageDimension> sigma;
-// //      for(size_t i = 0; i < ImageDimension; i++)
-// //        {
-// //        if(misc_opt.opt_ML.physical_units)
-// //          sigma[i] = misc_opt.opt_ML.sigma[i] / img_mov->GetSpacing()[i];
-// //        else
-// //          sigma[i] = misc_opt.opt_ML.sigma[i];
-// //        }
-// //
-// //      std::cout << "  Sigma = " << sigma << " (voxel units)" << std::endl;
-// //
-// //      interpolator_ML->SetParameters(sigma.data_block(), 4.0);
-// //
-// //      warper->SetInterpolator(interpolator_ML);
-//     }
-
-//   else if( misc_opt.use_BSpline_interpolator )
-//     {
-//     std::cout << " Not currently supported because of a lack of vector support " << std::endl;
-//     /*
-//       typedef typename itk::BSplineInterpolateImageFunction<ImageType, typename WarperType::CoordRepType> BSInterpolateType;
-//       typename BSInterpolateType::Pointer interpolator_BS = BSInterpolateType::New();
-//       interpolator_BS->SetSplineOrder(3);
-//       std::cout << "User B-spline interpolation " << std::endl;
-//       warper->SetInterpolator(interpolator_BS);
-//     */
-//     }
-//   else
-//     {
-//     typedef typename itk::LinearInterpolateImageFunction<ImageType,
-//                                                          typename WarperType::CoordRepType> LinInterpolateType;
-//     typename LinInterpolateType::Pointer interpolator_LN = LinInterpolateType::New();
-//     std::cout << "User Linear interpolation " << std::endl;
-//     warper->SetInterpolator(interpolator_LN);
-//     }
-
-//   typedef itk::TransformFileReader                    TranReaderType;
-//   typedef itk::ImageFileReader<DisplacementFieldType> FieldReaderType;
-//   bool         takeaffinv = false;
-//   unsigned int transcount = 0;
-//   const int    kOptQueueSize = opt_queue.size();
-//   for( int i = 0; i < kOptQueueSize; i++ )
-//     {
-//     const TRAN_OPT & opt = opt_queue[i];
-
-//     switch( opt.file_type )
-//       {
-//       case AFFINE_FILE:
-//         {
-//         typename TranReaderType::Pointer tran_reader = TranReaderType::New();
-//         tran_reader->SetFileName(opt.filename);
-//         tran_reader->Update();
-//         typename AffineTransformType::Pointer aff = dynamic_cast<AffineTransformType *>
-//           ( (tran_reader->GetTransformList() )->front().GetPointer() );
-//         if( opt.do_affine_inv )
-//           {
-//           typename AffineTransformType::Pointer aff_inv = AffineTransformType::New();
-//           aff->GetInverse(aff_inv);
-//           aff = aff_inv;
-//           takeaffinv = true;
-//           }
-//         // std::cout <<" aff " << transcount <<  std::endl;
-//         warper->PushBackAffineTransform(aff);
-//         if( transcount == 0 )
-//           {
-//           warper->SetOutputParametersFromImage( img_mov );
-//           }
-//         transcount++;
-//         break;
-//         }
-
-//       case IDENTITY_TRANSFORM:
-//         {
-//         typename AffineTransformType::Pointer aff;
-//         GetIdentityTransform(aff);
-//         // std::cout << " aff id" << transcount << std::endl;
-//         warper->PushBackAffineTransform(aff);
-//         transcount++;
-//         break;
-//         }
-
-//       case IMAGE_AFFINE_HEADER:
-//         {
-//         typename AffineTransformType::Pointer aff = AffineTransformType::New();
-//         typename ImageFileReaderType::Pointer reader_image_affine = ImageFileReaderType::New();
-//         reader_image_affine->SetFileName(opt.filename);
-//         reader_image_affine->Update();
-//         typename ImageType::Pointer img_affine = reader_image_affine->GetOutput();
-
-//         GetAffineTransformFromImage<ImageType, AffineTransformType>(img_affine, aff);
-
-//         if( opt.do_affine_inv )
-//           {
-//           typename AffineTransformType::Pointer aff_inv = AffineTransformType::New();
-//           aff->GetInverse(aff_inv);
-//           aff = aff_inv;
-//           takeaffinv = true;
-//           }
-
-//         // std::cout <<" aff from image header " << transcount <<  std::endl;
-//         warper->PushBackAffineTransform(aff);
-
-//         //            if (transcount==0){
-//         //                warper->SetOutputParametersFromImage( img_mov);
-//         //            }
-
-//         transcount++;
-//         break;
-//         }
-
-//       case DEFORMATION_FILE:
-//         {
-//         typename FieldReaderType::Pointer field_reader = FieldReaderType::New();
-//         field_reader->SetFileName( opt.filename );
-//         field_reader->Update();
-//         typename DisplacementFieldType::Pointer field = field_reader->GetOutput();
-
-//         warper->PushBackDisplacementFieldTransform(field);
-//         warper->SetOutputParametersFromImage(field );
-
-//         transcount++;
-//         break;
-//         }
-//       default:
-//         std::cout << "Unknown file type!" << std::endl;
-//       }
-//     }
-
-//   // std::cout << " transcount " << transcount << std::endl; warper->PrintTransformList();
-//   if( transcount == 2 )
-//     {
-//     std::cout << "  We check the syntax of your call .... " << std::endl;
-//     const TRAN_OPT & opt1 = opt_queue[0];
-//     const TRAN_OPT & opt2 = opt_queue[1];
-
-//     if( opt1.file_type == AFFINE_FILE  && opt2.file_type == DEFORMATION_FILE   )
-//       {
-//       bool defisinv = IsInverseDeformation(opt2.filename.c_str() );
-//       if( !takeaffinv )
-//         {
-//         std::cout
-//           <<
-//           " Your 1st parameter should be an inverse affine map and the 2nd an InverseWarp  --- exiting without applying warp.  Check that , if using an inverse affine map, you pass the -i option before the Affine.txt."
-//           << std::endl;
-//         return;
-//         }
-//       if( !defisinv )
-//         {
-//         std::cout
-//           <<
-//           " Your 2nd  parameter should be an InverseWarp when your 1st parameter is an inverse affine map  --- exiting without applying warp.  "
-//           << std::endl;
-//         return;
-//         }
-//       }
-//     if( opt2.file_type == AFFINE_FILE  && opt1.file_type == DEFORMATION_FILE   )
-//       {
-//       bool defisinv = IsInverseDeformation(opt1.filename.c_str() );
-//       if(  defisinv )
-//         {
-//         std::cout
-//           <<
-//           " Your 1st parameter should be a Warp (not Inverse) when your 2nd parameter is an affine map --- exiting without applying warp.  "
-//           << std::endl;
-//         return;
-//         }
-//       if(  takeaffinv )
-//         {
-//         std::cout
-//           <<
-//           " Your 2nd parameter should be a regular affine map (not inverted) if the 1st is a Warp --- exiting without applying warp. "
-//           << std::endl;
-//         return;
-//         }
-//       }
-//     std::cout << " syntax probably ok. " << std::endl;
-//     }
-//   else
-//     {
-//     std::cout << " You are doing something more complex -- we wont check syntax in this case " << std::endl;
-//     }
-
-//   if( img_ref.IsNotNull() )
-//     {
-//     warper->SetOutputParametersFromImage( img_ref );
-//     }
-//   else
-//     {
-//     if( misc_opt.use_TightestBoundingBox == true )
-//       {
-//       // compute the desired spacking after inputting all the transform files using the
-
-//       typename ImageType::SizeType largest_size;
-//       typename ImageType::PointType origin_warped;
-//       GetLargestSizeAfterWarp<WarperType, ImageType>(warper, img_mov, largest_size, origin_warped);
-//       // Use img_mov as initial template space, then overwrite individual components as desired
-//       warper->SetOutputParametersFromImage( img_mov );
-
-//       warper->SetOutputSize(largest_size);
-//       warper->SetOutputOrigin(origin_warped);
-//         {
-//         typename ImageType::DirectionType d;
-//         d.SetIdentity();
-//         warper->SetOutputDirection(d);
-//         }
-//       }
-//     }
-
-//   std::cout << "output origin: " << warper->GetOutputOrigin() << std::endl;
-//   std::cout << "output size: " << warper->GetOutputSize() << std::endl;
-//   std::cout << "output spacing: " << warper->GetOutputSpacing() << std::endl;
-//   std::cout << "output direction: " << warper->GetOutputDirection() << std::endl;
-
-//   // warper->PrintTransformList();
-//   warper->DetermineFirstDeformNoInterp();
-//   warper->Update();
-
-//   //    {
-//   //        typename ImageType::IndexType ind_orig, ind_warped;
-//   //        ind_orig[0] = 128;
-//   //        ind_orig[1] = 128;
-//   //        ind_orig[2] = 16;
-//   //        typename ImageType::PointType pt_orig, pt_warped;
-//   //        warper->GetOutput()->TransformIndexToPhysicalPoint(ind_orig, pt_orig);
-//   //        warper->MultiTransformSinglePoint(pt_orig, pt_warped);
-//   //        img_mov->TransformPhysicalPointToIndex(pt_warped, ind_warped);
-//   //        std::cout << "Transform output index " << ind_orig << "("<<pt_orig<<")"
-//   //        << " from moving image index " << ind_warped << "("<<pt_warped<<")" << std::endl;
-//   //    }
-
-//   //    typename ImageType::PointType pt_in, pt_out;
-//   //    for(unsigned int i=0; i<ImageDimension; i++){
-//   //        pt_in[i] = warper->GetOutputSize()[i] * 0.5;
-//   //    }
-//   //    warper->MultiTransformSinglePoint(pt_in, pt_out);
-//   //    std::cout << "pt_in=" << pt_in << " pt_out=" <<pt_out << std::endl;
-
-//   typename ImageType::Pointer img_output = warper->GetOutput();
-
-//   typedef itk::ImageFileWriter<ImageType> ImageFileWriterType;
-//   typename ImageFileWriterType::Pointer writer_img = ImageFileWriterType::New();
-//   if( img_ref )
-//     {
-//     img_output->SetDirection(img_ref->GetDirection() );
-//     }
-//   writer_img->SetFileName(output_image_filename);
-//   writer_img->SetInput(img_output);
-//   writer_img->Update();
+//   // v1 = v0 - (dt/6) * (k1 + 2*k2 + 2*k3 + k4)
+//   // k1
+//   adTranspose(*sf1, *vff1, *vff1);
+//   // partially update v1 = v0 - (dt/6)*k1
+//   Copy_FieldComplex(*vff2, *vff1);
+//   AddI_FieldComplex(*vff2, *sf1, -dt / 6.0);
+//   // k2
+//   Copy_FieldComplex(*sf3, *vff1);
+//   AddI_FieldComplex(*sf3, *sf1, -0.5*dt);
+//   adTranspose(*sf2, *sf3, *sf3);
+//   // partially update v1 = v1 - (dt/3)*k2
+//   AddI_FieldComplex(*vff2, *sf2, -dt / 3.0);
+//   // k3 (stored in scratch1)
+//   Copy_FieldComplex(*sf3, *vff1);
+//   AddI_FieldComplex(*sf3, *sf2, -0.5*dt);
+//   adTranspose(*sf1, *sf3, *sf3);
+//   // partially update v1 = v1 - (dt/3)*k3
+//   AddI_FieldComplex(*vff2, *sf1, -dt / 3.0);
+//   // k4 (stored in scratch2)
+//   Copy_FieldComplex(*sf3, *vff1);
+//   AddI_FieldComplex(*sf3, *sf1, -dt);
+//   adTranspose(*sf2, *sf3, *sf3);
+//   // finish updating v1 = v1 - (dt/6)*k4
+//   AddI_FieldComplex(*vff2, *sf2, -dt / 6.0);
 // }
 
 
+// void EulerStep(FieldComplex3D * sf1, FieldComplex3D * vff1, FieldComplex3D * vff2, float dt)
+// // sf: scratch field (preallocated memory to store intermediate calculations)
+// // vff: velocity flow field (vff1: i-1, vff2: i)
+// // dt: time step size
+// {
+//   // v0 = v0 - dt * adTranspose(v0, v0)
+//   Copy_FieldComplex(*vff2, *vff1);
+//   adTranspose(*sf1, *vff2, *vff2);
+//   AddI_FieldComplex(*vff2, *sf1, -dt);
+// }
+
+
+// void AdvectionStep(FieldComplex3D * JacX, FieldComplex3D * JacY, FieldComplex3D * JacZ,
+//                 FieldComplex3D * sf1, FieldComplex3D * sf2, FieldComplex3D * vff,
+//                 float dt)
+// // sf: scratch field (preallocated memory to store intermediate calculations)
+// // vff: velocity flow field
+// // dt: time step size
+// {
+//   Jacobian(*JacX, *JacY, *JacZ, *(this->m_fftoper->CDcoeff), *sf1);
+//   this->m_fftoper->ConvolveComplexFFT(*sf2, 0, *JacX, *JacY, *JacZ, *vff);
+//   AddIMul_FieldComplex(*sf1, *sf2, *vff, -dt);
+// }
+
+
+// void ForwardTransformStep(DisplacementFieldType * displacement, DisplacementFieldType * spatialVitk, Field3D * spatialV, FieldComplex3D * vff, float dt)
+// // displacement: ITK displacement field object holding current forward displacement field
+// // spatialVitk: ITK displacement field object to hold spatial velocity as an ITK object
+// // spatialV: pyca Field3D to hold velocity in spatial domain
+// // vff: velocity flow field for current time step
+// // dt: time step size
+// {
+//   // phi_t = phi_{t-1} + dt * invFFT(v_t) o phi_{t-1}
+//   // get spatial velocity as ITK object
+//   // adding identity, then stripping it off in pycaToItkVectorField is wasteful, but we only compute forward transform once
+//   this->m_fftoper->fourier2spatial_addH(*spatialV, *vff, this->idxf, this->idyf, this->idzf);
+//   pycaToItkVectorField(*spatialVitk, *spatialV);
+//   // move Eulerian velocity to Lagrangian velocity with current value of displacement
+//   using warpType = WarpVectorImageFilter<DisplacementFieldType, DisplacementFieldType, DisplacementFieldType>;
+//   typename warpType::Pointer warper = warpType::New();
+//   warper->SetOutputSpacing(displacement->GetSpacing());
+//   warper->SetOutputOrigin(displacement->GetOrigin());
+//   warper->SetOutputDirection(displacement->GetDirection());
+//   warper->SetInput( spatialVitk ); // possibly need to dereference these?
+//   warper->SetDisplacementField( displacement );
+//   // multiply by time step
+//   using RealImageType = Image<float, ImageDimension>;
+//   using MultiplierType = MultiplyImageFilter<DisplacementFieldType, RealImageType, DisplacementFieldType>;
+//   typename MultiplierType::Pointer multiplier = MultiplierType::New();
+//   multiplier->SetInput( warper->GetOutput() );
+//   multiplier->SetConstant( dt );
+//   multiplier->Update();
+//   // add to current value of transform
+//   using ComposerType = ComposeDisplacementFieldsImageFilter<DisplacementFieldType>;
+//   typename ComposerType::Pointer composer = ComposerType::New();
+//   composer->SetDisplacementField( multiplier->GetOutput() );
+//   composer->SetWarpingField( displacement );
+//   composer->Update();
+//   this->m_fixedToMovingInverseDisplacement = composer->GetOutput();
+// }
+
+
+// // adTranspose
+// // spatial domain: K(Dv^T Lw + div(L*w x v))
+// // K*(CorrComplexFFT(CD*v^T, L*w) + TensorCorr(L*w, v) * D)
+// void adTranspose(FieldComplex3D & adTransvw, const FieldComplex3D & v, const FieldComplex3D & w)
+// {
+//      Mul_FieldComplex(*(this->m_adScratch1),
+//                       *(this->m_fftoper->Lcoeff), w);
+//      JacobianT(*(this->m_JacX),
+//                *(this->m_JacY),
+//                *(this->m_JacZ),
+//                *(this->m_fftoper->CDcoeff), v); 
+//      this->m_fftoper->ConvolveComplexFFT(adTransvw, 1,
+//                                          *(this->m_JacX),
+//                                          *(this->m_JacY),
+//                                          *(this->m_JacZ),
+//                                          *(this->m_adScratch1));
+//      this->m_fftoper->CorrComplexFFT(*(this->m_adScratch2), v,
+//                                      *(this->m_adScratch1),
+//                                      *(this->m_fftoper->CDcoeff));
+//      AddI_FieldComplex(adTransvw, *(this->m_adScratch2), 1.0);
+//      MulI_FieldComplex(adTransvw, *(this->m_fftoper->Kcoeff));
+// }
+
+
+void reconstructFlashTransforms(char * velocity_field_filename,
+      	                        char * reference_image_filename,
+      	                        char * output_prefix,
+      	                        int time_steps,
+      	                        float laplace_weight,
+      	                        int operator_order)
+{
+
+  // Read initial velocity
+  typedef itk::ImageFileReader<ComplexFieldType> ComplexFieldReaderType;
+  typename ComplexFieldReaderType::Pointer velocity_reader = ComplexFieldReaderType::New();
+  velocity_reader->SetFileName(velocity_field_filename);
+  velocity_reader->Update();
+  typename ComplexFieldType::Pointer v0_itk = velocity_reader->GetOutput();
+  typename ComplexFieldType::SizeType v0_dims = v0_itk->GetLargestPossibleRegion().GetSize();
+
+  // Read reference image
+  // TODO: may not actually need to read in the data, maybe IOFactory thing (see WarpImageMultiTransform, before call to actual function)
+  //       it can grab the kinds of params I need without reading in the image data
+  typedef itk::ImageFileReader<ImageType> ImageReaderType;
+  typename ImageReaderType::Pointer reference_reader = ImageReaderType::New();
+  reference_reader->SetFileName(reference_image_filename);
+  reference_reader->Update();
+  typename ImageType::Pointer reference_image = reference_reader->GetOutput();
+  typename ImageType::SizeType reference_dims = reference_image->GetLargestPossibleRegion().GetSize();
+  typename ImageType::SpacingType reference_spacing = reference_image->GetSpacing();
+  typename ImageType::PointType reference_origin = reference_image->GetOrigin();
+
+  // convert V0 to pyca FieldComplex3D object
+  FieldComplex3D * v0 = new FieldComplex3D(v0_dims[0], v0_dims[1], v0_dims[2]);  // TODO: generalize for image dimension?
+  itkToPycaComplexVectorField(*v0_itk, *v0);
+
+  // set up objects for forward integration
+
+
+
+ 
+
+  // typedef itk::ImageFileWriter<ImageType> ImageFileWriterType;
+  // typename ImageFileWriterType::Pointer writer_img = ImageFileWriterType::New();
+  // if( img_ref )
+  //   {
+  //   img_output->SetDirection(img_ref->GetDirection() );
+  //   }
+  // writer_img->SetFileName(output_image_filename);
+  // writer_img->SetInput(img_output);
+  // writer_img->Update();
+}
 
 
 // entry point for the library; parameter 'args' is equivalent to 'argv' in (argc,argv) of commandline parameters to
@@ -674,57 +346,37 @@ int reconstructFlashTransforms( std::vector<std::string> args, std::ostream* /*o
     return EXIT_FAILURE;
     }
 
-  TRAN_OPT_QUEUE opt_queue;
-  char *         moving_image_filename = ITK_NULLPTR;
-  char *         output_image_filename = ITK_NULLPTR;
+  // TODO: make interface better, e.g. use flags, enforce correct input types, pull argument parsing into separate function
+  char *         velocity_field_filename = argv[1];
+  char *         reference_image_filename = argv[2];
+  char *         output_prefix = argv[3];
+  const int      time_steps = atoi(argv[4]);
+  const float    laplace_weight = atof(argv[5]);
+  const int      operator_order = atoi(argv[6]);
 
-  MISC_OPT misc_opt;
+  std::cout << "velocity_field_filename: " << velocity_field_filename << std::endl;
+  std::cout << "reference_image_filename: " << reference_image_filename << std::endl;
+  std::cout << "output_prefix: " << output_prefix << std::endl;
+  std::cout << "time_steps: " << time_steps << std::endl;
+  std::cout << "laplace_weight: " << laplace_weight << std::endl;
+  std::cout << "operator_order: " << operator_order << std::endl;
 
-  const int  kImageDim = atoi(argv[1]);
-  // const bool is_parsing_ok = reconstructFlashTransforms_ParseInput(argc - 2, argv + 2,
-  //                                                    moving_image_filename, output_image_filename,
-  //                                                    opt_queue, misc_opt, kImageDim);
-
-  const bool is_parsing_ok = true;  // DEBUG
-
-  if( is_parsing_ok )
+  try
     {
-    // itk::ImageIOBase::Pointer imageIO = itk::ImageIOFactory::CreateImageIO(moving_image_filename,
-    //                                                                        itk::ImageIOFactory::ReadMode);
-    // imageIO->SetFileName(moving_image_filename);
-    // imageIO->ReadImageInformation();
-    // unsigned int ncomponents = imageIO->GetNumberOfComponents();
-
-    // std::cout << "moving_image_filename: " << moving_image_filename << " components " << ncomponents << std::endl;
-    // std::cout << "output_image_filename: " << output_image_filename << std::endl;
-
-    // if( misc_opt.reference_image_filename )
-    //   {
-    //   std::cout << misc_opt.reference_image_filename << std::endl;
-    //   }
-    // else
-    //   {
-    //   std::cout << "NULL" << std::endl;
-    //   }
-    // DisplayOptQueue(opt_queue);
-
-    try
-      {
-        std::cout << "RUNNING FUNCTION!" << std::endl;  // DEBUG
-        // reconstructFlashTransforms()
-      }
-    catch( itk::ExceptionObject & e )
-      {
-      std::cout << "Exception caught during reconstructFlashTransforms." << std::endl;
-      std::cout << e << std::endl;
-      return EXIT_FAILURE;
-      }
+      reconstructFlashTransforms(velocity_field_filename,
+      	                         reference_image_filename,
+      	                         output_prefix,
+      	                         time_steps,
+      	                         laplace_weight,
+      	                         operator_order);
     }
-  else
+  catch( itk::ExceptionObject & e )
     {
-    std::cout << "Input error!" << std::endl;
+    std::cout << "Exception caught during reconstructFlashTransforms." << std::endl;
+    std::cout << e << std::endl;
     return EXIT_FAILURE;
     }
+
   return EXIT_SUCCESS;
 }
 } // namespace ants
