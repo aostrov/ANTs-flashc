@@ -254,7 +254,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   this->m_movingToFixedInverseDisplacement->SetRegions( virtualDomainImage->GetRequestedRegion() );
   this->m_movingToFixedInverseDisplacement->Allocate();
 
-  // these ones are actually only needed for the final iteration of the final level
+  // TODO: these ones are actually only needed for the final iteration of the final level
   this->m_fixedToMovingInverseDisplacement = DisplacementFieldType::New();
   this->m_fixedToMovingInverseDisplacement->CopyInformation( virtualDomainImage );
   this->m_fixedToMovingInverseDisplacement->SetRegions( virtualDomainImage->GetRequestedRegion() );
