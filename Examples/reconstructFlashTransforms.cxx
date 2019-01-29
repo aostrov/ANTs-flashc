@@ -433,7 +433,7 @@ int reconstructFlashTransforms( std::vector<std::string> args, std::ostream* /*o
   if( argc <= 3 )
     {
     std::cout <<  "\nUsage:\n" << std::endl;
-    std::cout << argv[0] << "V0Path ReferencePath outputs_prefix\n" << std::endl;
+    std::cout << argv[0] << " V0Path ReferencePath outputs_prefix time_steps laplace_weight operator_order\n" << std::endl;
     std::cout << "Reconstructs Warp and InverseWarp from FLASH transform initial velocity\nrequires reference image\n" << std::endl;
     if( argc >= 2 &&
         ( std::string( argv[1] ) == std::string("--help") || std::string( argv[1] ) == std::string("-h") ) )
