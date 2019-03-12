@@ -25,8 +25,7 @@
 #include "itkComposeDisplacementFieldsImageFilter.h"
 
 // TODO: writing out low dim field should eventually be handled in
-//       antsRegistrationTemplateHeader.h, and (optional) turned off with a
-//       flag in the interface
+//       antsRegistrationTemplateHeader.h
 #include "itkImageFileWriter.h"
 
 using namespace PyCA;
@@ -99,8 +98,7 @@ FLASHImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtu
   this->GetTransformOutput()->Set(this->m_OutputTransform);
 
   // TODO: writing out low dim field should eventually be handled in
-  //       antsRegistrationTemplateHeader.h, and (optional) turned off with a
-  //       flag in the interface
+  //       antsRegistrationTemplateHeader.h
   // create ITK container for Fourier representation of initial velocity
   typename ComplexFieldType::Pointer v0itk = ComplexFieldType::New();
   typename ComplexFieldType::SizeType size;

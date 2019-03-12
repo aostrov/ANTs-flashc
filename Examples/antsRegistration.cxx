@@ -372,7 +372,7 @@ static void antsRegistrationInitializeCommandLineOptions( itk::ants::CommandLine
   // FLASH edit
   // TODO: eventually switch to gaussian reg?
   option->SetUsageOption(
-    14, "FLASH[GradientStep,RegularizerTermWeight,LaplacianWeight,OperatorOrder,NumberOfTimeSteps,FourierSizes,V0Path]");
+    14, "FLASH[GradientStep,RegularizerTermWeight,LaplacianWeight,OperatorOrder,NumberOfTimeSteps,FourierSizes]");
   // END: FLASH edit
   option->SetDescription( description );
   parser->AddOption( option );

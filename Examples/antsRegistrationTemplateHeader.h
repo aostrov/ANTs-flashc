@@ -948,7 +948,8 @@ DoRegistration(typename ParserType::Pointer & parser)
         std::string V0Path;
         if( transformOption->GetFunction( currentStage )->GetNumberOfParameters() > 1 )
           {
-          V0Path = transformOption->GetFunction( currentStage )->GetParameter( 6 );
+          V0Path += outputPrefix;
+          V0Path += std::string("V0Path.nii.gz");
           }
         regHelper->AddFLASHTransform( learningRate, RegularizerTermWeight, LaplacianWeight,
                                       OperatorOrder, NumberOfTimeSteps, fourierSizes, V0Path );
