@@ -318,7 +318,7 @@ void ForwardIntegration(Field3D * inverseTransformSpatial,
 
 void reconstructFlashTransforms(char * velocity_field_filename,
       	                        char * reference_image_filename,
-      	                        char * output_prefix,
+      	                        std::string output_prefix,
       	                        int time_steps,
       	                        float laplace_weight,
       	                        int operator_order)
@@ -373,12 +373,10 @@ void reconstructFlashTransforms(char * velocity_field_filename,
   // write out reconstructed displacement fields
   typedef itk::ImageFileWriter<DisplacementFieldType> DisplacementFieldWriterType;
   typename DisplacementFieldWriterType::Pointer writer = DisplacementFieldWriterType::New();
-  char output_prefix_copy[1000]; // TODO: maybe use std::string? anyway, remove 100 char limitation
-  std::strcpy(output_prefix_copy, output_prefix);
-  writer->SetFileName(std::strcat(output_prefix_copy, "-Warp.nii.gz"));
+  writer->SetFileName(output_prefix + "-Warp.nii.gz");
   writer->SetInput(inverseDisplacement);
   writer->Update();
-  writer->SetFileName(std::strcat(output_prefix, "-InverseWarp.nii.gz"));
+  writer->SetFileName(output_prefix + "-InverseWarp.nii.gz");
   writer->SetInput(forwardDisplacement);
   writer->Update();
 }
@@ -446,7 +444,7 @@ int reconstructFlashTransforms( std::vector<std::string> args, std::ostream* /*o
   // TODO: make interface better, e.g. use flags, enforce correct input types, pull argument parsing into separate function
   char *         velocity_field_filename = argv[1];
   char *         reference_image_filename = argv[2];
-  char *         output_prefix = argv[3];
+  std::string    output_prefix = argv[3];
   const int      time_steps = atoi(argv[4]);
   const float    laplace_weight = atof(argv[5]);
   const int      operator_order = atoi(argv[6]);
