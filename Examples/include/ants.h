@@ -63,6 +63,8 @@
 
 #include "antsLandmarkBasedTransformInitializer.h"
 
+#include "AddNoiseToImage.h"
+
 #include "Atropos.h"
 
 #include "AverageAffineTransform.h"
@@ -193,6 +195,8 @@
 
 #include "SetSpacing.h"
 
+#include "SimulateDisplacementField.h"
+
 #include "SmoothImage.h"
 
 #include "SmoothDisplacementField.h"
@@ -234,5 +238,4 @@
 #include "TextureCooccurrenceFeatures.h"
 
 #include "reconstructFlashTransforms.h"  // FLASH EDIT
-
 #endif // ants_h
