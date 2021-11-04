@@ -7,14 +7,15 @@
 =========================================================
 
 [![Build Status](https://travis-ci.org/ANTsX/ANTs.svg?branch=master)](https://travis-ci.org/ANTsX/ANTs)
+[![ANTsX](https://circleci.com/gh/ANTsX/ANTs.svg?style=shield)](https://app.circleci.com/pipelines/github/ANTsX/ANTs)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg)](code_of_conduct.md)
 
 ANTs computes high-dimensional mappings to capture the statistics of brain
-structure and function.  See the [FAQ page](https://github.com/stnava/ANTsTutorial/blob/master/handout/antsGithubExamples.Rmd).
+structure and function.  See the [collection of examples at this page](https://github.com/stnava/ANTsTutorial/blob/master/handout/antsGithubExamples.Rmd).
 
 ![ants template](http://i.imgur.com/mLZ71Ai.png)
 
-ANTs allows one to organize, visualize and statistically explore large biomedical
-image sets.
+ANTs allows one to organize, visualize and statistically explore large biomedical image sets.
 
 ![ants render](http://i.imgur.com/hMW6fjB.png)
 
@@ -30,9 +31,13 @@ ANTs and related tools have won several international and unbiased competitions.
 
 ![ants competes](http://i.imgur.com/HE0j7IC.png)
 
-[ANTsR](http://stnava.github.io/ANTsR/) is the underlying statistical workhorse.
+[ANTsR](https://github.com/ANTsX/ANTsR) is the underlying statistical workhorse.  ANTsR examples [here](https://rpubs.com/antsr).
 
-Questions: [Discussion Site](http://sourceforge.net/p/advants/discussion/) or *new* [ANTsDoc](http://stnava.github.io/ANTsDoc/) or try [this version](http://issuu.com/brianavants/docs/ants2) ... also read our [guide to evaluation strategies and addressing new problems with ANTs or other software](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3766821/).  *New* [ANTs handout](https://github.com/stnava/ANTsTutorial/raw/master/handout/antsHandout.pdf), part of forthcoming [ANTs tutorial]() material.
+[ANTsPy](https://github.com/ANTsX/ANTsPy) is pythonic ANTs/ANTsR. See [this content too](https://github.com/stnava/ANTsRPy).
+
+Questions: [Discussion Site](http://sourceforge.net/p/advants/discussion/) or *new* [ANTsDoc](http://stnava.github.io/ANTsDoc/) or try [this version](http://issuu.com/brianavants/docs/ants2) ... also read our [guide to evaluation strategies and addressing new problems with ANTs or other software](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3766821/).
+
+The [ANTs handout](https://github.com/stnava/ANTsTutorial/raw/master/handout/antsHandout.pdf), part of forthcoming [ANTs tutorial](https://github.com/stnava/ANTsTutorial) material [here](https://github.com/stnava/ANTsTutorial) and [here](https://rpubs.com/antsr/).
 
 [ANTsTalk - subject to change at any moment](http://stnava.github.io/ANTsTalk/)
 
@@ -198,13 +203,13 @@ Learning about ANTs (examples, etc.)
 
 * **antsRegistration** [bash example](https://github.com/stnava/ANTs/blob/master/Scripts/newAntsExample.sh)
 
-* **antsRegistration with mask** [example](https://github.com/ntustison/antsRegistrationWithMaskExample)
+* **antsRegistration with mask** [(bash, ANTsR and ANTsPy examples)](https://github.com/ntustison/antsRegistrationWithMaskExample)
 
 * **ANTs and ITK** [paper](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4009425/)
 
-* **Large deformation** [example](http://stnava.github.io/C/)
+* **Large deformation** [(bash, ANTsR and ANTsPy examples)](http://stnava.github.io/C/)
 
-* **Automobile** [example](http://stnava.github.io/cars/)
+* **Automobile** [(bash and ANTsR examples)](http://stnava.github.io/cars/)
 
 * **Asymmetry** [example](http://stnava.github.io/asymmetry/)
 
@@ -216,7 +221,7 @@ Learning about ANTs (examples, etc.)
 
 * **Patch-based super resolution** [example](https://github.com/ntustison/NonLocalSuperResolutionExample)
 
-* **Image denoising** [example](https://github.com/ntustison/DenoiseImageExample)
+* **Image denoising** [(bash, ANTsR and ANTsPy examples)](https://github.com/ntustison/DenoiseImageExample)
 
 * **Visualization** [example](https://github.com/ntustison/antsVisualizationExamples)
 
@@ -228,17 +233,17 @@ Learning about ANTs (examples, etc.)
 
 ### Neuro
 
-* **Basic Brain Mapping** [example](http://stnava.github.io/BasicBrainMapping/)
+* **Basic Brain Mapping** [(bash and ANTsR examples)](http://stnava.github.io/BasicBrainMapping/)
 
-* **Template construction** [example](http://ntustison.github.io/TemplateBuildingExample/)
+* **Template construction** [(bash, ANTsR and ANTsPy examples)](http://ntustison.github.io/TemplateBuildingExample/)
 
 * **Single subject template construction** [example](https://github.com/ntustison/SingleSubjectTemplateExample)
 
-* **Pre-built ANTs templates with spatial priors** [download](http://figshare.com/articles/ANTs_ANTsR_Brain_Templates/915436)
+* **Pre-built ANTs templates with spatial priors** [download](http://figshare.com/articles/ANTs_ANTsR_Brain_Templates/915436) including an [MNI version](https://figshare.com/articles/ANTs_files_for_mni_icbm152_nlin_sym_09a/8061914).
 
-* **Brain extraction** [example](https://github.com/ntustison/antsBrainExtractionExample)
+* **Brain extraction** [(bash and ANTsR examples)](https://github.com/ntustison/antsBrainExtractionExample)
 
-* **N4 bias correction <-> segmentation** [example](https://github.com/ntustison/antsAtroposN4Example)
+* **N4 bias correction <-> segmentation** [(bash, ANTsR and ANTsPy examples)](https://github.com/ntustison/antsAtroposN4Example)
 
 * **Cortical thickness** [example](https://github.com/ntustison/antsCorticalThicknessExample)
 
@@ -246,7 +251,7 @@ Learning about ANTs (examples, etc.)
   [example](https://github.com/ntustison/antsCookTemplatePriorsExample)
   (after you build your template)
 
-* **Multi-atlas joint label/intensity fusion examples** [example 1](https://github.com/ntustison/MalfLabelingExample) [example 2](https://github.com/qureai/Multi-Atlas-Segmentation) (thanks to @chsasank)
+* **Multi-atlas joint label/intensity fusion examples** [(bash and ANTsR examples 1)](https://github.com/ntustison/MalfLabelingExample) [example 2](https://github.com/qureai/Multi-Atlas-Segmentation) (thanks to @chsasank)
 
 * **The ANTs Cortical Thickness Pipeline** [example](https://github.com/ntustison/KapowskiChronicles/blob/master/paper2.pdf?raw=true)
 
@@ -268,7 +273,7 @@ Learning about ANTs (examples, etc.)
 
 ### Lung
 
-* **CT lung registration** [example](https://github.com/ntustison/antsCtLungRegistrationExample)
+* **CT lung registration** [(bash and ANTsR examples)](https://github.com/ntustison/antsCtLungRegistrationExample)
 
 * **Lung mask registration** [example](https://github.com/ntustison/ProtonCtLungMaskRegistration)
 

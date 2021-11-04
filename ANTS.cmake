@@ -13,39 +13,33 @@ set(CMAKE_MODULE_PATH
 set (CMAKE_INCLUDE_DIRECTORIES_BEFORE ON)
 #-----------------------------------------------------------------------------
 # Version information
-include(Version.cmake)
-
-set(${PROJECT_NAME}_VERSION "${${PROJECT_NAME}_VERSION_MAJOR}.${${PROJECT_NAME}_VERSION_MINOR}")
-if(DEFINED ${PROJECT_NAME}_VERSION_PATCH)
-  set(${PROJECT_NAME}_VERSION "${${PROJECT_NAME}_VERSION}.${${PROJECT_NAME}_VERSION_PATCH}")
-  if(DEFINED ${PROJECT_NAME}_VERSION_TWEAK)
-    set(${PROJECT_NAME}_VERSION "${${PROJECT_NAME}_VERSION}.${${PROJECT_NAME}_VERSION_TWEAK}")
-  endif()
-endif()
-
-if(DEFINED ${PROJECT_NAME}_VERSION_RC)
-  set(${PROJECT_NAME}_VERSION "${${PROJECT_NAME}_VERSION}${${PROJECT_NAME}_VERSION_RC}")
-endif()
-if(DEFINED ${PROJECT_NAME}_VERSION_POST)
-  set(${PROJECT_NAME}_VERSION "${${PROJECT_NAME}_VERSION}.post${${PROJECT_NAME}_VERSION_POST}")
-elseif(DEFINED ${PROJECT_NAME}_VERSION_DEV)
-  set(${PROJECT_NAME}_VERSION "${${PROJECT_NAME}_VERSION}.dev${${PROJECT_NAME}_VERSION_DEV}")
-endif()
-
 option( ${PROJECT_NAME}_BUILD_DISTRIBUTE "Remove '-g#####' from version. ( for official distribution only )" OFF )
 mark_as_advanced( ${PROJECT_NAME}_BUILD_DISTRIBUTE )
-if( NOT ${PROJECT_NAME}_BUILD_DISTRIBUTE AND NOT ${PROJECT_NAME}_VERSION_HASH STREQUAL "GITDIR-NOTFOUND")
-  set(${PROJECT_NAME}_VERSION "${${PROJECT_NAME}_VERSION}-g${${PROJECT_NAME}_VERSION_HASH}")
-endif()
+
+include(Version.cmake)
+
+#-----------------------------------------------------------------------------
+# CPACK Version
+#
+set(CPACK_PACKAGE_NAME "ANTs")
+set(CPACK_PACKAGE_VENDOR "CMake.org")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "ANTs - Advanced Normalization Tools")
+set(CPACK_PACKAGE_VERSION_MAJOR ${${PROJECT_NAME}_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${${PROJECT_NAME}_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${${PROJECT_NAME}_VERSION_PATCH})
+set(CPACK_PACKAGE_VERSION ${${PROJECT_NAME}_VERSION})
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "ANTS_Install")
+set(CPACK_BINARY_GENERATORS "DragNDrop TGZ TZ")
+set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README.txt")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "ANTs - robust image registration, segmentation and more")
+set(CPACK_RESOURCE_FILE_LICENSE  "${CMAKE_CURRENT_SOURCE_DIR}/ANTSCopyright.txt")
+set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.txt")
 
 message(STATUS "Building ${PROJECT_NAME} version \"${${PROJECT_NAME}_VERSION}\"")
 
-
 # Set up ITK
-find_package(ITK 5 REQUIRED)
+find_package(ITK ${ITK_VERSION_ID} REQUIRED)
 include(${ITK_USE_FILE})
-message(${ITK_USE_FILE})
-
 # FLASH EDIT
 # TODO: still needs to be improved; paths should be exposed when running ccmake and required for proper config
 #       if PyCAConfig.cmake is not found, ccmake should complain and fail the configure
@@ -81,14 +75,13 @@ ENDIF(PyCA_SOURCE)
 # Set up which ANTs apps to build
 option(BUILD_ALL_ANTS_APPS "Use All ANTs Apps" ON)
 
-
 # Set up VTK
 option(USE_VTK "Use VTK Libraries" OFF)
 if(USE_VTK)
   find_package(VTK)
 
   if(VTK_VERSION_MAJOR GREATER 6)
-    find_package(VTK COMPONENTS vtkRenderingVolumeOpenGL2
+    find_package(VTK 8.1.1 COMPONENTS vtkRenderingVolumeOpenGL2
    vtkCommonCore
    vtkCommonDataModel
    vtkIOGeometry
@@ -99,25 +92,12 @@ if(USE_VTK)
    vtkImagingStencil
    vtkImagingGeneral
    vtkRenderingAnnotation
+   vtkFiltersExtraction
    )
-  else()
-     find_package(VTK COMPONENTS vtkRenderingVolumeOpenGL
-     vtkCommonCore
-     vtkCommonDataModel
-     vtkIOGeometry
-     vtkIOXML
-     vtkIOLegacy
-     vtkIOPLY
-     vtkFiltersModeling
-     vtkImagingStencil
-     vtkImagingGeneral
-     vtkRenderingAnnotation)
   endif()
 
   if(VTK_FOUND)
     include(${VTK_USE_FILE})
-    include_directories(${VTK_INCLUDE_DIRS})
-    set(INIT_VTK_LIBRARIES ${VTK_LIBRARIES})
   else()
      message("Cannot build some programs without VTK.  Please set VTK_DIR if you need these programs.")
   endif()
@@ -152,7 +132,6 @@ if (USE_FFTWD OR USE_FFTWF)
     link_directories(${FFTW_LIBDIR})
 endif()
 # END: FLASH EDIT
-
 # These are configure time options that specify which
 # subset of tests should be run
 option(RUN_SHORT_TESTS    "Run the quick unit tests."                                   ON  )
@@ -192,3 +171,38 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/ANTsVersionConfig.h.in"
                "${CMAKE_CURRENT_BINARY_DIR}/ANTsVersionConfig.h" @ONLY IMMEDIATE)
 
 add_subdirectory(Examples)
+
+if (NOT ANTS_INSTALL_LIBS_ONLY) 
+  install(PROGRAMS Scripts/ANTSpexec.sh
+     Scripts/antsASLProcessing.sh
+     Scripts/antsAtroposN4.sh
+     Scripts/antsBOLDNetworkAnalysis.R
+     Scripts/antsBrainExtraction.sh
+     Scripts/antsCorticalThickness.sh
+     Scripts/antsIntermodalityIntrasubject.sh
+     Scripts/antsIntroduction.sh
+     Scripts/antsLaplacianBoundaryCondition.R
+     Scripts/antsLongitudinalCorticalThickness.sh
+     Scripts/antsJointLabelFusion.sh
+     Scripts/antsMultivariateTemplateConstruction.sh
+     Scripts/antsMultivariateTemplateConstruction2.sh
+     Scripts/antsNetworkAnalysis.R
+     Scripts/antsNeuroimagingBattery
+     Scripts/antsRegistrationSyN.sh
+     Scripts/antsRegistrationSyNQuick.sh
+     Scripts/waitForPBSQJobs.pl
+     Scripts/waitForSGEQJobs.pl
+     Scripts/waitForXGridJobs.pl
+     Scripts/waitForSlurmJobs.pl
+                DESTINATION bin
+                PERMISSIONS  OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+                CONFIGURATIONS  Release
+                COMPONENT SCRIPTS
+     )
+endif()
+
+#Only install ITK/VTK libraries if shared build and superbuild is used
+if(BUILD_SHARED_LIBS AND ((NOT USE_SYSTEM_ITK) OR ((NOT USE_SYSTEM_VTK) AND USE_VTK)))
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/../staging/lib/
+          DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endif()
