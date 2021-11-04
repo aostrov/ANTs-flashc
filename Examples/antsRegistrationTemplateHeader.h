@@ -27,7 +27,7 @@ namespace ants
 
 extern const char * RegTypeToFileName( const std::string & type, bool & writeInverse, bool & writeVelocityField, bool minc );
 
-template <class TComputeType, unsigned VImageDimension>
+template <typename TComputeType, unsigned VImageDimension>
 int
 DoRegistration(typename ParserType::Pointer & parser)
 {
@@ -56,6 +56,25 @@ DoRegistration(typename ParserType::Pointer & parser)
   if( ! verbose )
     {
     regHelper->SetLogStream( cnul );
+    }
+
+  OptionType::Pointer fixRandomSeed = parser->GetOption( "random-seed" );
+  if( fixRandomSeed && fixRandomSeed->GetNumberOfFunctions() )
+    {
+    int randomSeed = parser->Convert<int>( fixRandomSeed->GetFunction(0)->GetName() );
+    regHelper->SetRegistrationRandomSeed(randomSeed);
+    }
+  else
+    {
+    char* randomSeedEnv = getenv( "ANTS_RANDOM_SEED" );
+    if ( randomSeedEnv != nullptr )
+      {
+      regHelper->SetRegistrationRandomSeed( std::stoi( randomSeedEnv ) );
+      }
+    else
+      {
+      regHelper->SetRegistrationRandomSeed(0);
+      }
     }
 
   OptionType::Pointer transformOption = parser->GetOption( "transform" );
@@ -147,21 +166,6 @@ DoRegistration(typename ParserType::Pointer & parser)
   else
     {
     regHelper->SetInitializeTransformsPerStage( false );
-    }
-
-  /*
-   * This option is currently disabled, so commenting it's usage out here
-   *
-   * OptionType::Pointer collapseLinearTransforms =
-   * parser->GetOption( "collapse-linear-transforms-to-fixed-image-header" );
-   * if( collapseLinearTransforms && parser->Convert<bool>( collapseLinearTransforms->GetFunction( 0 )->GetName() ) )
-   * {
-   * regHelper->SetApplyLinearTransformsToFixedImageHeader( true );
-   * }
-   * else
-   */
-    {
-    regHelper->SetApplyLinearTransformsToFixedImageHeader( false );
     }
 
   OptionType::Pointer printSimilarityMeasureInterval = parser->GetOption( "print-similarity-measure-interval" );
@@ -510,7 +514,7 @@ DoRegistration(typename ParserType::Pointer & parser)
         {
         convergenceWindowSize = parser->Convert<unsigned int>( convergenceOption->GetFunction(
                                                                  currentStage )->GetParameter( 2 ) );
-        const unsigned int minAllowedconvergenceWindowSize = 2; // The BSplineScatteredDataPoints requires at least 2
+        constexpr unsigned int minAllowedconvergenceWindowSize = 2; // The BSplineScatteredDataPoints requires at least 2
                                                                 // points for interpolation.
         if( convergenceWindowSize < minAllowedconvergenceWindowSize )
           {
@@ -1012,12 +1016,12 @@ DoRegistration(typename ParserType::Pointer & parser)
 
     // Get the fixed and moving images or point sets
 
-    typename ImageType::Pointer fixedImage = ITK_NULLPTR;
-    typename ImageType::Pointer movingImage = ITK_NULLPTR;
-    typename LabeledPointSetType::Pointer fixedLabeledPointSet = ITK_NULLPTR;
-    typename LabeledPointSetType::Pointer movingLabeledPointSet = ITK_NULLPTR;
-    typename IntensityPointSetType::Pointer fixedIntensityPointSet = ITK_NULLPTR;
-    typename IntensityPointSetType::Pointer movingIntensityPointSet = ITK_NULLPTR;
+    typename ImageType::Pointer fixedImage = nullptr;
+    typename ImageType::Pointer movingImage = nullptr;
+    typename LabeledPointSetType::Pointer fixedLabeledPointSet = nullptr;
+    typename LabeledPointSetType::Pointer movingLabeledPointSet = nullptr;
+    typename IntensityPointSetType::Pointer fixedIntensityPointSet = nullptr;
+    typename IntensityPointSetType::Pointer movingIntensityPointSet = nullptr;
 
     float metricWeighting = 1.0;
     if( metricOption->GetFunction( currentMetricNumber )->GetNumberOfParameters() > 2 )
@@ -1034,14 +1038,14 @@ DoRegistration(typename ParserType::Pointer & parser)
 
     //   labeled point sets
     bool useBoundaryPointsOnly = false;
-    float pointSetSigma = 1.0;
+    RealType pointSetSigma = itk::NumericTraits<RealType>::OneValue();
     unsigned int evaluationKNeighborhood = 50;
-    float alpha = 1.1;
-    float useAnisotropicCovariances = false;
-    float samplingPercentage = 1.0;
+    RealType alpha = static_cast<RealType>( 1.1 );
+    bool useAnisotropicCovariances = false;
+    RealType samplingPercentage = itk::NumericTraits<RealType>::OneValue();
     //   intensity point sets
-    float intensityDistanceSigma = 0.0;
-    float euclideanDistanceSigma = 0.0;
+    RealType intensityDistanceSigma = itk::NumericTraits<RealType>::ZeroValue();
+    RealType euclideanDistanceSigma = itk::NumericTraits<RealType>::ZeroValue();
 
     if( !regHelper->IsPointSetMetric( currentMetric ) )
       {
@@ -1136,12 +1140,12 @@ DoRegistration(typename ParserType::Pointer & parser)
         if( metricOption->GetFunction( currentMetricNumber )->GetNumberOfParameters() > 6 )
           {
           intensityDistanceSigma =
-            parser->Convert<float>( metricOption->GetFunction( currentMetricNumber )->GetParameter( 6 ) );
+            parser->Convert<RealType>( metricOption->GetFunction( currentMetricNumber )->GetParameter( 6 ) );
           }
         if( metricOption->GetFunction( currentMetricNumber )->GetNumberOfParameters() > 7 )
           {
           euclideanDistanceSigma =
-            parser->Convert<float>( metricOption->GetFunction( currentMetricNumber )->GetParameter( 7 ) );
+            parser->Convert<RealType>( metricOption->GetFunction( currentMetricNumber )->GetParameter( 7 ) );
           }
         evaluationKNeighborhood = 1;
         if( metricOption->GetFunction( currentMetricNumber )->GetNumberOfParameters() > 8 )
@@ -1150,10 +1154,10 @@ DoRegistration(typename ParserType::Pointer & parser)
             parser->Convert<unsigned int>( metricOption->GetFunction( currentMetricNumber )->GetParameter( 8 ) );
           }
 
-        double gradientPointSetSigma = 1.0;
+        RealType gradientPointSetSigma = itk::NumericTraits<RealType>::OneValue();
         if( metricOption->GetFunction( currentMetricNumber )->GetNumberOfParameters() > 9 )
           {
-          gradientPointSetSigma = parser->Convert<double>(
+          gradientPointSetSigma = parser->Convert<RealType>(
             metricOption->GetFunction( currentMetricNumber )->GetParameter( 9 ) );
           }
         std::vector<unsigned int> neighborhoodRadius;
@@ -1195,7 +1199,7 @@ DoRegistration(typename ParserType::Pointer & parser)
         if( metricOption->GetFunction( currentMetricNumber )->GetNumberOfParameters() > 3 )
           {
           samplingPercentage =
-            parser->Convert<float>( metricOption->GetFunction( currentMetricNumber )->GetParameter( 3 ) );
+            parser->Convert<RealType>( metricOption->GetFunction( currentMetricNumber )->GetParameter( 3 ) );
           }
         if( metricOption->GetFunction( currentMetricNumber )->GetNumberOfParameters() > 4 )
           {
@@ -1205,7 +1209,7 @@ DoRegistration(typename ParserType::Pointer & parser)
         if( metricOption->GetFunction( currentMetricNumber )->GetNumberOfParameters() > 5 )
           {
           pointSetSigma =
-            parser->Convert<float>( metricOption->GetFunction( currentMetricNumber )->GetParameter( 5 ) );
+            parser->Convert<RealType>( metricOption->GetFunction( currentMetricNumber )->GetParameter( 5 ) );
           }
         if( metricOption->GetFunction( currentMetricNumber )->GetNumberOfParameters() > 6 )
           {
@@ -1215,7 +1219,7 @@ DoRegistration(typename ParserType::Pointer & parser)
         if( metricOption->GetFunction( currentMetricNumber )->GetNumberOfParameters() > 7 )
           {
           alpha =
-            parser->Convert<float>( metricOption->GetFunction( currentMetricNumber )->GetParameter( 7 ) );
+            parser->Convert<RealType>( metricOption->GetFunction( currentMetricNumber )->GetParameter( 7 ) );
           }
         if( metricOption->GetFunction( currentMetricNumber )->GetNumberOfParameters() > 8 )
           {
@@ -1288,8 +1292,8 @@ DoRegistration(typename ParserType::Pointer & parser)
       }
     unsigned int numStateComponents = savedStateTx->GetNumberOfTransforms();
     // If the last two transforms are displacement field transforms, we add their inverse displacement field to the saved state composite.
-    if( savedStateTx->GetNthTransform( numStateComponents-1 )->GetTransformCategory() == TransformType::DisplacementField
-       && savedStateTx->GetNthTransform( numStateComponents-2 )->GetTransformCategory() == TransformType::DisplacementField )
+    if( savedStateTx->GetNthTransform( numStateComponents-1 )->GetTransformCategory() == TransformType::TransformCategoryEnum::DisplacementField
+       && savedStateTx->GetNthTransform( numStateComponents-2 )->GetTransformCategory() == TransformType::TransformCategoryEnum::DisplacementField )
       {
       typename DisplacementFieldTransformType::Pointer oneToEndTransform =
         dynamic_cast<DisplacementFieldTransformType *>( savedStateTx->GetNthTransform( numStateComponents-2 ).GetPointer() );
@@ -1329,13 +1333,13 @@ DoRegistration(typename ParserType::Pointer & parser)
       TransformTypeNames.clear();
       for( unsigned int i = 0; i < numTransforms; i++ )
         {
-        if( transformToWrite->GetNthTransform( i )->GetTransformCategory() == TransformType::Linear )
+        if( transformToWrite->GetNthTransform( i )->GetTransformCategory() == TransformType::TransformCategoryEnum::Linear )
           {
           // The output type must be Affine, not matrixoffset!  TransformTypeNames.push_back( "matrixoffset" );
-          TransformTypeNames.push_back( "genericaffine" );
+          TransformTypeNames.emplace_back("genericaffine" );
           }
         else if( transformToWrite->GetNthTransform( i )->GetTransformCategory() ==
-          TransformType::DisplacementField )
+          TransformType::TransformCategoryEnum::DisplacementField )
           {
           typename DisplacementFieldTransformType::Pointer nthTransform =
             dynamic_cast<DisplacementFieldTransformType *>( transformToWrite->GetNthTransform( i ).GetPointer() );
@@ -1346,16 +1350,16 @@ DoRegistration(typename ParserType::Pointer & parser)
           // not.
           if( nthTransform && nthTransform->GetInverseDisplacementField() )
             {
-            TransformTypeNames.push_back( "syn" );
+            TransformTypeNames.emplace_back("syn" );
             }
           else
             {
-            TransformTypeNames.push_back( "gdf" );
+            TransformTypeNames.emplace_back("gdf" );
             }
           }
-        else if( transformToWrite->GetNthTransform( i )->GetTransformCategory() == TransformType::BSpline )
+        else if( transformToWrite->GetNthTransform( i )->GetTransformCategory() == TransformType::TransformCategoryEnum::BSpline )
           {
-          TransformTypeNames.push_back( "bspline" );
+          TransformTypeNames.emplace_back("bspline" );
           }
         }
       }
@@ -1538,7 +1542,7 @@ DoRegistration(typename ParserType::Pointer & parser)
     typename ImageType::Pointer warpedImage = regHelper->GetWarpedImage();
     if( warpedImage.IsNotNull() )
       {
-      WriteImage<ImageType>( warpedImage, outputWarpedImageName.c_str()  );
+      ANTs::WriteImage<ImageType>( warpedImage, outputWarpedImageName.c_str()  );
      }
     }
 
@@ -1547,7 +1551,7 @@ DoRegistration(typename ParserType::Pointer & parser)
     typename ImageType::Pointer inverseWarpedImage = regHelper->GetInverseWarpedImage();
     if( inverseWarpedImage.IsNotNull() )
       {
-      WriteImage<ImageType>( inverseWarpedImage, outputInverseWarpedImageName.c_str()  );
+      ANTs::WriteImage<ImageType>( inverseWarpedImage, outputInverseWarpedImageName.c_str()  );
       }
     }
 

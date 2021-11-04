@@ -119,13 +119,13 @@
 namespace ants
 {
 
-template <class TComputeType, unsigned int ImageDimension>
+template <typename TComputeType, unsigned int ImageDimension>
 class SimilarityTransformTraits
 {
   // Don't worry about the fact that the default option is the
   // affine Transform, that one will not actually be instantiated.
 public:
-  typedef itk::AffineTransform<TComputeType, ImageDimension> TransformType;
+  using TransformType = itk::AffineTransform<TComputeType, ImageDimension>;
 };
 
 
@@ -133,58 +133,85 @@ template <>
 class SimilarityTransformTraits<double, 2>
 {
 public:
-  typedef itk::Similarity2DTransform<double> TransformType;
+  using TransformType = itk::Similarity2DTransform<double>;
 };
 
 template <>
 class SimilarityTransformTraits<float, 2>
 {
 public:
-  typedef itk::Similarity2DTransform<float> TransformType;
+  using TransformType = itk::Similarity2DTransform<float>;
 };
 
 template <>
 class SimilarityTransformTraits<double, 3>
 {
 public:
-  typedef itk::Similarity3DTransform<double> TransformType;
+  using TransformType = itk::Similarity3DTransform<double>;
 };
 
 template <>
 class SimilarityTransformTraits<float, 3>
 {
 public:
-  typedef itk::Similarity3DTransform<float> TransformType;
+  using TransformType = itk::Similarity3DTransform<float>;
 };
 
+using RealType = double;
+
+// Specializations try to rotate around tertiary and secondary axis
+
+static void
+l_rotate_around_tertiatry_and_secondary_axis(vnl_vector_fixed<RealType, 3> &       evec_tert,
+                                             const vnl_vector_fixed<RealType, 3> & evec1_primary,
+                                             vnl_vector_fixed<RealType, 3> &       evec1_2ndary)
+{
+  evec_tert = vnl_cross_3d(evec1_primary, evec1_2ndary);
+}
+
+static void
+l_rotate_around_tertiatry_and_secondary_axis(vnl_vector_fixed<RealType, 2> &       evec_tert,
+                                             const vnl_vector_fixed<RealType, 2> & evec1_primary,
+                                             vnl_vector_fixed<RealType, 2> &       evec1_2ndary)
+{
+  evec_tert = evec1_2ndary;
+  evec1_2ndary = evec1_primary;
+}
+
+static void
+l_rotate_around_tertiatry_and_secondary_axis(vnl_vector_fixed<RealType, 4> &,
+                                             const vnl_vector_fixed<RealType, 4> &,
+                                             vnl_vector_fixed<RealType, 4> &)
+{
+  return; // Do nothing in the case of 4D
+}
 
 template <unsigned int ImageDimension>
 int antsAffineInitializerImp(int argc, char *argv[])
 {
-  typedef double RealType;
-  typedef float  PixelType;
+
+  using PixelType = float;
 
   /** Define All Parameters Here */
-  double       pi = vnl_math::pi;                // probably a vnl alternative
+  double       pi = itk::Math::pi;                // probably a vnl alternative
   RealType     searchfactor = 10;                // in degrees, passed by user
   unsigned int mibins = 32;                      // for mattes MI metric
   RealType     degtorad = 0.0174532925;          // to convert degrees to radians
-  unsigned int localoptimizeriterations = 20;    // for local search via conjgrad
+  //NOT USED: unsigned int localoptimizeriterations = 20;    // for local search via conjgrad
   // piover4 is (+/-) for cross-section of the sphere to multi-start search in increments
   // of searchfactor ( converted from degrees to radians ).
   // the search is centered +/- from the principal axis alignment of the images.
   RealType piover4 = pi / 4; // works in preliminary practical examples in 3D, in 2D use pi.
   bool     useprincaxis = false;
-  typedef typename itk::ImageMaskSpatialObject<ImageDimension>::ImageType
-    maskimagetype;
+  using maskimagetype = typename itk::ImageMaskSpatialObject<ImageDimension>::ImageType;
   std::string whichMetric=std::string("MI");
   unsigned int localSearchIterations = 20;
-  typedef itk::TransformFileWriter                                        TransformWriterType;
-  typedef itk::Vector<float, ImageDimension>                              VectorType;
-  typedef itk::Image<PixelType, ImageDimension>                           ImageType;
-  typedef typename itk::ImageMomentsCalculator<ImageType>                 ImageCalculatorType;
-  typedef itk::AffineTransform<RealType, ImageDimension> AffineType;
-  typedef typename ImageCalculatorType::MatrixType                        MatrixType;
+  using TransformWriterType = itk::TransformFileWriter;
+  using VectorType = itk::Vector<float, ImageDimension>;
+  using ImageType = itk::Image<PixelType, ImageDimension>;
+  using ImageCalculatorType = typename itk::ImageMomentsCalculator<ImageType>;
+  using AffineType = itk::AffineTransform<RealType, ImageDimension>;
+  using MatrixType = typename ImageCalculatorType::MatrixType;
   if( argc < 2 )
     {
     return 0;
@@ -212,15 +239,16 @@ int antsAffineInitializerImp(int argc, char *argv[])
     }
   if(  argc > argct )
     {
-    useprincaxis = atoi( argv[argct] );   argct++;
+    useprincaxis = std::stoi( argv[argct] );   argct++;
     }
   if(  argc > argct )
     {
-    localoptimizeriterations = atoi( argv[argct] );   argct++;
+    //NOT USED: localoptimizeriterations = std::stoi( argv[argct] );
+    argct++;
     }
-  typename ImageType::Pointer image1 = ITK_NULLPTR;
-  typename ImageType::Pointer image2 = ITK_NULLPTR;
-  typename maskimagetype::Pointer mask = ITK_NULLPTR;
+  typename ImageType::Pointer image1 = nullptr;
+  typename ImageType::Pointer image2 = nullptr;
+  typename maskimagetype::Pointer mask = nullptr;
   ReadImage<ImageType>(image1, fn1.c_str() );
   ReadImage<ImageType>(image2, fn2.c_str() );
   std::string maskfn = "";
@@ -281,26 +309,25 @@ int antsAffineInitializerImp(int argc, char *argv[])
     {
     eigind1 = 2;
     }
-  vnl_vector<RealType> evec1_2ndary =  cpa1.GetVnlMatrix().get_row( eigind2 );
-  vnl_vector<RealType> evec1_primary = cpa1.GetVnlMatrix().get_row( eigind1 );
-  vnl_vector<RealType> evec2_2ndary  = cpa2.GetVnlMatrix().get_row( eigind2 );
-  vnl_vector<RealType> evec2_primary = cpa2.GetVnlMatrix().get_row( eigind1 );
+  vnl_vector_fixed<RealType, ImageDimension> evec1_primary { cpa1.GetVnlMatrix().get_row( eigind1 ).as_vector()  };
+  vnl_vector_fixed<RealType, ImageDimension> evec2_primary { cpa2.GetVnlMatrix().get_row( eigind1 ).as_vector()  };
+  vnl_vector_fixed<RealType, ImageDimension> evec1_2ndary  { cpa1.GetVnlMatrix().get_row( eigind2 ).as_vector()  };
+  vnl_vector_fixed<RealType, ImageDimension> evec2_2ndary  { cpa2.GetVnlMatrix().get_row( eigind2 ).as_vector()  };
   /** Solve Wahba's problem --- http://en.wikipedia.org/wiki/Wahba%27s_problem */
-  vnl_matrix<RealType> B = outer_product( evec2_primary, evec1_primary );
+  vnl_matrix_fixed<RealType, ImageDimension, ImageDimension> B = outer_product( evec2_primary, evec1_primary );
   if( ImageDimension == 3 )
     {
     B = outer_product( evec2_2ndary, evec1_2ndary )
       + outer_product( evec2_primary, evec1_primary );
     }
-  vnl_svd<RealType>    wahba( B );
-  vnl_matrix<RealType> A_solution = wahba.V() * wahba.U().transpose();
-  A_solution = vnl_inverse( A_solution );
-  RealType det = vnl_determinant( A_solution  );
+  vnl_svd_fixed<RealType, ImageDimension, ImageDimension>    wahba( B );
+  vnl_matrix_fixed<RealType, ImageDimension, ImageDimension> A_solution = vnl_inverse( wahba.V() * wahba.U().transpose() );
+  const RealType det = vnl_determinant( A_solution  );
   if( det < 0 )
     {
     std::cerr << " bad det " << det << " v " <<  vnl_determinant( wahba.V() ) << " u "
              <<   vnl_determinant( wahba.U() )  << std::endl;
-    vnl_matrix<RealType> id( A_solution );
+    vnl_matrix_fixed<RealType, ImageDimension, ImageDimension> id( A_solution );
     id.set_identity();
     for( unsigned int i = 0; i < ImageDimension; i++ )
       {
@@ -313,6 +340,9 @@ int antsAffineInitializerImp(int argc, char *argv[])
     std::cerr << " bad det " << det << " v " <<  vnl_determinant( wahba.V() ) << " u "
              <<   vnl_determinant( wahba.U() )  << " new " << vnl_determinant( A_solution  ) << std::endl;
     }
+
+  typename AffineType::MatrixType AA_solution = typename AffineType::MatrixType( A_solution );
+
   typename AffineType::Pointer affine1 = AffineType::New(); // translation to center
   typename AffineType::OffsetType trans = affine1->GetOffset();
   itk::Point<double, ImageDimension> trans2;
@@ -325,7 +355,7 @@ int antsAffineInitializerImp(int argc, char *argv[])
   affine1->SetOffset( trans );
   if( useprincaxis )
     {
-    affine1->SetMatrix( A_solution );
+    affine1->SetMatrix( AA_solution );
     }
   affine1->SetCenter( trans2 );
     {
@@ -341,16 +371,8 @@ int antsAffineInitializerImp(int argc, char *argv[])
     {
     return EXIT_SUCCESS;
     }
-  vnl_vector<RealType> evec_tert;
-  if( ImageDimension == 3 )
-    { // try to rotate around tertiary and secondary axis
-    evec_tert = vnl_cross_3d( evec1_primary, evec1_2ndary );
-    }
-  if( ImageDimension == 2 )
-    { // try to rotate around tertiary and secondary axis
-    evec_tert = evec1_2ndary;
-    evec1_2ndary = evec1_primary;
-    }
+  vnl_vector_fixed<RealType, ImageDimension> evec_tert;
+  l_rotate_around_tertiatry_and_secondary_axis(evec_tert, evec1_primary, evec1_2ndary);
   itk::Vector<RealType, ImageDimension> axis2;
   itk::Vector<RealType, ImageDimension> axis1;
   for( unsigned int d = 0; d < ImageDimension; d++ )
@@ -359,13 +381,11 @@ int antsAffineInitializerImp(int argc, char *argv[])
     axis2[d] = evec1_2ndary[d];
     }
     typename AffineType::Pointer affinesearch = AffineType::New();
-    typedef  itk::MultiStartOptimizerv4         OptimizerType;
+    using OptimizerType = itk::MultiStartOptimizerv4;
     typename OptimizerType::MetricValuesListType metricvalues;
     typename OptimizerType::Pointer  mstartOptimizer = OptimizerType::New();
-    typedef itk::CorrelationImageToImageMetricv4
-    <ImageType, ImageType, ImageType> GCMetricType;
-    typedef itk::MattesMutualInformationImageToImageMetricv4
-    <ImageType, ImageType, ImageType> MetricType;
+    using GCMetricType = itk::CorrelationImageToImageMetricv4<ImageType, ImageType, ImageType>;
+    using MetricType = itk::MattesMutualInformationImageToImageMetricv4<ImageType, ImageType, ImageType>;
     typename MetricType::ParametersType newparams(  affine1->GetParameters() );
     typename GCMetricType::Pointer gcmetric = GCMetricType::New();
     gcmetric->SetFixedImage( image1 );
@@ -387,7 +407,7 @@ int antsAffineInitializerImp(int argc, char *argv[])
       mimetric->SetFixedImageMask( so );
       gcmetric->SetFixedImageMask( so );
     }
-    typedef  itk::ConjugateGradientLineSearchOptimizerv4 LocalOptimizerType;
+    using LocalOptimizerType = itk::ConjugateGradientLineSearchOptimizerv4;
     typename LocalOptimizerType::Pointer  localoptimizer =
     LocalOptimizerType::New();
     RealType     localoptimizerlearningrate = 0.1;
@@ -404,8 +424,8 @@ int antsAffineInitializerImp(int argc, char *argv[])
     localoptimizer->SetConvergenceWindowSize( 5 );
     if( true )
     {
-      typedef typename MetricType::FixedSampledPointSetType PointSetType;
-      typedef typename PointSetType::PointType              PointType;
+      using PointSetType = typename MetricType::FixedSampledPointSetType;
+      using PointType = typename PointSetType::PointType;
       typename PointSetType::Pointer      pset(PointSetType::New());
       unsigned int ind=0;
       unsigned int ct=0;
@@ -424,14 +444,13 @@ int antsAffineInitializerImp(int argc, char *argv[])
         ct++;
       }
       mimetric->SetFixedSampledPointSet( pset );
-      mimetric->SetUseFixedSampledPointSet( true );
+      mimetric->SetUseSampledPointSet( true );
       gcmetric->SetFixedSampledPointSet( pset );
-      gcmetric->SetUseFixedSampledPointSet( true );
+      gcmetric->SetUseSampledPointSet( true );
     }
     if ( whichMetric.compare("MI") == 0  ) {
       mimetric->Initialize();
-      typedef itk::RegistrationParameterScalesFromPhysicalShift<MetricType>
-      RegistrationParameterScalesFromPhysicalShiftType;
+      using RegistrationParameterScalesFromPhysicalShiftType = itk::RegistrationParameterScalesFromPhysicalShift<MetricType>;
       typename RegistrationParameterScalesFromPhysicalShiftType::Pointer
       shiftScaleEstimator =
       RegistrationParameterScalesFromPhysicalShiftType::New();
@@ -447,8 +466,7 @@ int antsAffineInitializerImp(int argc, char *argv[])
     }
     if ( whichMetric.compare("MI") != 0  ) {
       gcmetric->Initialize();
-      typedef itk::RegistrationParameterScalesFromPhysicalShift<GCMetricType>
-      RegistrationParameterScalesFromPhysicalShiftType;
+      using RegistrationParameterScalesFromPhysicalShiftType = itk::RegistrationParameterScalesFromPhysicalShift<GCMetricType>;
       typename RegistrationParameterScalesFromPhysicalShiftType::Pointer
       shiftScaleEstimator =
       RegistrationParameterScalesFromPhysicalShiftType::New();
@@ -468,7 +486,7 @@ int antsAffineInitializerImp(int argc, char *argv[])
       {
       if( useprincaxis )
       {
-        affinesearch->SetMatrix( A_solution );
+        affinesearch->SetMatrix( AA_solution );
       }
       if( ImageDimension == 3 )
       {
@@ -481,7 +499,7 @@ int antsAffineInitializerImp(int argc, char *argv[])
         affinesearch->SetOffset( trans );
         if( useprincaxis )
           {
-          affinesearch->SetMatrix( A_solution );
+          affinesearch->SetMatrix( AA_solution );
           }
         affinesearch->Rotate3D(axis1, ang1, 1);
         affinesearch->Rotate3D(axis2, ang2, 1);
@@ -496,7 +514,7 @@ int antsAffineInitializerImp(int argc, char *argv[])
         affinesearch->SetOffset( trans );
         if( useprincaxis )
         {
-        affinesearch->SetMatrix( A_solution );
+        affinesearch->SetMatrix( AA_solution );
         }
         affinesearch->Rotate2D( ang1, 1);
         affinesearch->Scale( bestscale );
@@ -526,7 +544,7 @@ int antsAffineInitializerImp(int argc, char *argv[])
 
 // entry point for the library; parameter 'args' is equivalent to 'argv' in (argc,argv) of commandline parameters to
 // 'main()'
-int antsAffineInitializer( std::vector<std::string> args, std::ostream* /*out_stream = ITK_NULLPTR */ )
+int antsAffineInitializer( std::vector<std::string> args, std::ostream* /*out_stream = nullptr */ )
 {
   // put the arguments coming in as 'args' into standard (argc,argv) format;
   // 'args' doesn't have the command name as first, argument, so add it manually;
@@ -544,7 +562,7 @@ int antsAffineInitializer( std::vector<std::string> args, std::ostream* /*out_st
     // place the null character in the end
     argv[i][args[i].length()] = '\0';
     }
-  argv[argc] = ITK_NULLPTR;
+  argv[argc] = nullptr;
   // class to automatically cleanup argv upon destruction
   class Cleanup_argv
   {
@@ -590,7 +608,7 @@ private:
     return 0;
     }
 
-  switch( atoi(argv[1]) )
+  switch( std::stoi(argv[1]) )
     {
     case 2:
       {

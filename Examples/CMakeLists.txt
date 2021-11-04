@@ -1,6 +1,7 @@
+SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
 ## Note that the antsUtilities can always be built static.  It will then be linked
 ## Directly into the other libraries.
-add_library(antsUtilities STATIC antsUtilities.cxx
+add_library(antsUtilities antsUtilities.cxx
             antsRegistrationTemplateHeader.cxx
             antsRegistration2DDouble.cxx antsRegistration2DFloat.cxx
             antsRegistration3DDouble.cxx antsRegistration3DFloat.cxx
@@ -9,15 +10,15 @@ add_library(antsUtilities STATIC antsUtilities.cxx
             ../Utilities/antsCommandLineOption.cxx
             ../Utilities/antsCommandLineParser.cxx
             ANTsVersion.cxx
-            ImageMathHelper.cxx ImageMathHelper2D.cxx  ImageMathHelper3D.cxx  ImageMathHelper4D.cxx
+            ImageMathHelper2D.cxx ImageMathHelper3D.cxx ImageMathHelper4D.cxx
             )
-target_link_libraries(antsUtilities ${ITK_LIBRARIES})
+target_link_libraries(antsUtilities ${ITK_LIBRARIES} )
 install(TARGETS antsUtilities
-    RUNTIME DESTINATION ${BIN_INSTALL_DIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     COMPONENT RUNTIME_antsUtilities
-    LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     COMPONENT RUNTIME_antsUtilities
-    ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     COMPONENT DEVELOPMENT_antsUtilities
   )
 
@@ -33,28 +34,75 @@ add_library(FLASH_LIB STATIC ${FLASH_FILES})
 target_link_libraries(FLASH_LIB ${ITK_LIBRARIES} ${PyCA_LIB} ${FFTWF_LIB} ${FFTWF_THREADS_LIB})
 # END: FLASH EDIT
 
-macro(STANDARD_ANTS_BUILD ANTS_FUNCTION_NAME EXTRA_LIBS)
+macro(STATIC_ANTS_BUILD ANTS_FUNCTION_NAME EXTRA_LIBS)
   set( ANTS_FUNCTION_NAME ${ANTS_FUNCTION_NAME} )
 
   add_library(l_${ANTS_FUNCTION_NAME} ${ANTS_FUNCTION_NAME}.cxx)
   set_target_properties(l_${ANTS_FUNCTION_NAME} PROPERTIES
-    SOVERSION ${LIBRARY_SOVERSION_INFO}  VERSION ${LIBRARY_VERSION_INFO})
+    SOVERSION ${ANTS_VERSION_MAJOR}  VERSION ${${PROJECT_NAME}_VERSION})
   message(STATUS "${ANTS_FUNCTION_NAME} ${EXTRA_LIBS}")
-  target_link_libraries(l_${ANTS_FUNCTION_NAME} antsUtilities ${EXTRA_LIBS})
+  target_link_libraries(l_${ANTS_FUNCTION_NAME} antsUtilities ${EXTRA_LIBS} )
   configure_file( template_for_executables.cxx.in cli_${ANTS_FUNCTION_NAME}.cxx )
-  add_executable( ${ANTS_FUNCTION_NAME} cli_${ANTS_FUNCTION_NAME}.cxx )
-  target_link_libraries( ${ANTS_FUNCTION_NAME} l_${ANTS_FUNCTION_NAME} )
 
-  install(TARGETS l_${ANTS_FUNCTION_NAME} ${ANTS_FUNCTION_NAME}
-    RUNTIME DESTINATION ${BIN_INSTALL_DIR}
-    COMPONENT RUNTIME_${ANTS_FUNCTION_NAME}
-    LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-    COMPONENT RUNTIME_${ANTS_FUNCTION_NAME}
-    ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
-    COMPONENT DEVELOPMENT_${ANTS_FUNCTION_NAME}
-  )
+  if (ANTS_INSTALL_LIBS_ONLY)
+    install(TARGETS l_${ANTS_FUNCTION_NAME}
+ #    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+ #    COMPONENT RUNTIME_${ANTS_FUNCTION_NAME}
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      COMPONENT RUNTIME_${ANTS_FUNCTION_NAME}
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      COMPONENT DEVELOPMENT_${ANTS_FUNCTION_NAME}
+    )
+  else()
+    add_executable( ${ANTS_FUNCTION_NAME} cli_${ANTS_FUNCTION_NAME}.cxx )
+    target_link_libraries( ${ANTS_FUNCTION_NAME} l_${ANTS_FUNCTION_NAME} )
+    install(TARGETS l_${ANTS_FUNCTION_NAME} ${ANTS_FUNCTION_NAME}
+      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+      COMPONENT RUNTIME_${ANTS_FUNCTION_NAME}
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      COMPONENT RUNTIME_${ANTS_FUNCTION_NAME}
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      COMPONENT DEVELOPMENT_${ANTS_FUNCTION_NAME}
+    )
+  endif()
 
 endmacro()
+
+macro(DYNAMIC_ANTS_BUILD ANTS_FUNCTION_NAME EXTRA_LIBS)
+  set( ANTS_FUNCTION_NAME ${ANTS_FUNCTION_NAME} )
+
+  add_library(l_${ANTS_FUNCTION_NAME} ${ANTS_FUNCTION_NAME}.cxx)
+  set_target_properties(l_${ANTS_FUNCTION_NAME} PROPERTIES
+    SOVERSION ${ANTS_VERSION_MAJOR}  VERSION ${${PROJECT_NAME}_VERSION})
+  message(STATUS "${ANTS_FUNCTION_NAME} ${EXTRA_LIBS}")
+  target_link_libraries(l_${ANTS_FUNCTION_NAME} antsUtilities ${EXTRA_LIBS} )
+  configure_file( template_for_executables.cxx.in cli_${ANTS_FUNCTION_NAME}.cxx )
+
+  if (ANTS_INSTALL_LIBS_ONLY)
+    install(TARGETS l_${ANTS_FUNCTION_NAME}
+  #   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  #   COMPONENT RUNTIME_${ANTS_FUNCTION_NAME}
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      COMPONENT RUNTIME_${ANTS_FUNCTION_NAME}
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      COMPONENT DEVELOPMENT_${ANTS_FUNCTION_NAME}
+  )
+  else()
+    add_executable( ${ANTS_FUNCTION_NAME} cli_${ANTS_FUNCTION_NAME}.cxx )
+    target_link_libraries( ${ANTS_FUNCTION_NAME} l_${ANTS_FUNCTION_NAME} )
+
+    install(TARGETS l_${ANTS_FUNCTION_NAME} ${ANTS_FUNCTION_NAME}
+      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+      COMPONENT RUNTIME_${ANTS_FUNCTION_NAME}
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      COMPONENT RUNTIME_${ANTS_FUNCTION_NAME}
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      COMPONENT DEVELOPMENT_${ANTS_FUNCTION_NAME}
+    )
+  endif()
+
+endmacro()
+
 
 #set(PROG_WITH_NO_FLAG simpleSynRegistration)
 #add_executable(${PROG_WITH_NO_FLAG} ${PROG_WITH_NO_FLAG}.cxx)
@@ -83,11 +131,12 @@ set(CORE_ANTS_APPS
 )
 
 set(MORE_ANTS_APPS
-    reconstructFlashTransforms  # FLASH EDIT
     antsAI
+    ANTSIntegrateVelocityField
     antsJointTensorFusion
     ImageMath
     iMath
+    AddNoiseToImage
     ANTS
     ANTSJacobian
     CreateJacobianDeterminantImage
@@ -113,6 +162,7 @@ set(MORE_ANTS_APPS
     AverageTensorImages
     ImageSetStatistics
     MultiplyImages
+    SimulateDisplacementField
     SmoothDisplacementField
     SmoothImage
     ClusterImageStatistics
@@ -144,13 +194,12 @@ set(MORE_ANTS_APPS
     antsMotionCorrDiffusionDirection
     antsSliceRegularizedRegistration
     ANTSIntegrateVectorField
-    ANTSIntegrateVelocityField
     antsTransformInfo
     antsUtilitiesTesting
     AverageAffineTransform
     AverageAffineTransformNoRigid
     AverageImages
-    # simpleSynRegistration
+    simpleSynRegistration
     CompositeTransformUtil
     CreateDisplacementField
     ConvertTransformFile
@@ -163,52 +212,58 @@ set(MORE_ANTS_APPS
     GetConnectedComponentsFeatureImages
     DeNrrd
     StackSlices
+    reconstructFlashTransforms  # FLASH EDIT
   )
 
-
-# FLASH EDIT
+# BEGIN: FLASH EDIT AARON
 foreach(ANTS_APP ${CORE_ANTS_APPS})
-  if(${ANTS_APP} STREQUAL "antsRegistration")
-    set(MY_LIBS FLASH_LIB)
-    STANDARD_ANTS_BUILD(${ANTS_APP} "${MY_LIBS}")
+  if (BUILD_SHARED_LIBS)
+    if(${ANTS_APP} STREQUAL "antsRegistration")
+      set(MY_LIBS FLASH_LIB)
+      DYNAMIC_ANTS_BUILD(${ANTS_APP} "${MY_LIBS}")
+    else ()
+      DYNAMIC_ANTS_BUILD(${ANTS_APP} "")
+    endif()
   else()
-    STANDARD_ANTS_BUILD(${ANTS_APP} "")
+    if(${ANTS_APP} STREQUAL "antsRegistration")
+      set(MY_LIBS FLASH_LIB)
+      STATIC_ANTS_BUILD(${ANTS_APP} "${MY_LIBS}")
+    else()
+      STATIC_ANTS_BUILD(${ANTS_APP} "")
+    endif()
   endif()
 endforeach()
 
 if (BUILD_ALL_ANTS_APPS)
   foreach(ANTS_APP ${MORE_ANTS_APPS})
-    if(${ANTS_APP} STREQUAL "reconstructFlashTransforms")
-      set(MY_LIBS FLASH_LIB)
-      STANDARD_ANTS_BUILD(${ANTS_APP} "${MY_LIBS}")
+    if (BUILD_SHARED_LIBS)
+      if(${ANTS_APP} STREQUAL "reconstructFlashTransforms")
+        set(MY_LIBS FLASH_LIB)
+        DYNAMIC_ANTS_BUILD(${ANTS_APP} "${MY_LIBS}")
+      else()
+       DYNAMIC_ANTS_BUILD(${ANTS_APP} "")
+      endif()
     else()
-      STANDARD_ANTS_BUILD(${ANTS_APP} "")
+      if(${ANTS_APP} STREQUAL "reconstructFlashTransforms")
+        set(MY_LIBS FLASH_LIB)
+        STATIC_ANTS_BUILD(${ANTS_APP} "${MY_LIBS}")
+      else()
+        STATIC_ANTS_BUILD(${ANTS_APP} "")
+      endif()
     endif()
   endforeach()
 else()
   foreach(ANTS_APP ${MORE_ANTS_APPS})
     if(ANTS_BUILD_${ANTS_APP})
-      STANDARD_ANTS_BUILD(${ANTS_APP} "")
+      if (BUILD_SHARED_LIBS)
+        DYNAMIC_ANTS_BUILD(${ANTS_APP} "")
+      else()
+        STATIC_ANTS_BUILD(${ANTS_APP} "")
+      endif()
     endif()
   endforeach()
 endif()
-# END: FLASH EDIT
-
-# foreach(ANTS_APP ${CORE_ANTS_APPS})
-#   STANDARD_ANTS_BUILD(${ANTS_APP} "")
-# endforeach()
-
-# if (BUILD_ALL_ANTS_APPS)
-#   foreach(ANTS_APP ${MORE_ANTS_APPS})
-#     STANDARD_ANTS_BUILD(${ANTS_APP} "")
-#   endforeach()
-# else()
-#   foreach(ANTS_APP ${MORE_ANTS_APPS})
-#     if(ANTS_BUILD_${ANTS_APP})
-#       STANDARD_ANTS_BUILD(${ANTS_APP} "")
-#     endif()
-#   endforeach()
-# endif()
+# END: FLASH EDIT AARON
 
 
 if(USE_VTK)
@@ -225,64 +280,17 @@ set(VTK_ANTS_APPS
   )
 
 foreach(ANTS_APP ${VTK_ANTS_APPS})
-  STANDARD_ANTS_BUILD(${ANTS_APP} "${VTK_LIBRARIES}")
+
+  if (BUILD_SHARED_LIBS)
+    DYNAMIC_ANTS_BUILD(${ANTS_APP} "${VTK_LIBRARIES}")
+  else()
+    STATIC_ANTS_BUILD(${ANTS_APP} "${VTK_LIBRARIES}")
+  endif()
+
 endforeach()
-endif()
-
-install(PROGRAMS ../Scripts/ANTSpexec.sh
-     ../Scripts/antsASLProcessing.sh
-     ../Scripts/antsAtroposN4.sh
-     ../Scripts/antsBOLDNetworkAnalysis.R
-     ../Scripts/antsBrainExtraction.sh
-     ../Scripts/antsCorticalThickness.sh
-     ../Scripts/antsIntermodalityIntrasubject.sh
-     ../Scripts/antsIntroduction.sh
-     ../Scripts/antsLaplacianBoundaryCondition.R
-     ../Scripts/antsLongitudinalCorticalThickness.sh
-     ../Scripts/antsJointLabelFusion.sh
-     ../Scripts/antsMultivariateTemplateConstruction.sh
-     ../Scripts/antsMultivariateTemplateConstruction2.sh
-     ../Scripts/antsNetworkAnalysis.R
-     ../Scripts/antsNeuroimagingBattery
-     ../Scripts/antsRegistrationSyN.sh
-     ../Scripts/antsRegistrationSyNQuick.sh
-     ../Scripts/waitForPBSQJobs.pl
-     ../Scripts/waitForSGEQJobs.pl
-     ../Scripts/waitForXGridJobs.pl
-     ../Scripts/waitForSlurmJobs.pl
-                DESTINATION ${SCRIPTS_INSTALL_DIR}
-                PERMISSIONS  OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-                CONFIGURATIONS  Release
-                COMPONENT SCRIPTS
-        )
-
-if( COPY_SCRIPT_FILES_TO_BIN_DIR )
-  message( "-- Copy scripts." )
-  file( GLOB SCRIPT_FILES "../Scripts/*.sh" )
-  file( GLOB PSCRIPT_FILES "../Scripts/*.pl" )
-  foreach( SCRIPT_FILE ${SCRIPT_FILES} )
-    message( "  Copying ${SCRIPT_FILE} to ${CMAKE_CURRENT_BINARY_DIR}/../../bin/" )
-    configure_file( ${SCRIPT_FILE} ${CMAKE_CURRENT_BINARY_DIR}/../../bin/ COPYONLY )
-  endforeach()
-  foreach( SCRIPT_FILE ${PSCRIPT_FILES} )
-    message( "  Copying ${SCRIPT_FILE} to ${CMAKE_CURRENT_BINARY_DIR}/../../bin/" )
-    configure_file( ${SCRIPT_FILE} ${CMAKE_CURRENT_BINARY_DIR}/../../bin/ COPYONLY )
-  endforeach()
 endif()
 
 ## Build test option
 if(BUILD_TESTING)
     add_subdirectory(TestSuite)
 endif()
-
-set(CPACK_PACKAGE_NAME "ANTs")
-set(CPACK_PACKAGE_VENDOR "CMake.org")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "ANTs - Advanced Normalization Tools")
-set(CPACK_PACKAGE_VERSION 2.1.0)
-set(CPACK_PACKAGE_VERSION_MAJOR 2)
-set(CPACK_PACKAGE_VERSION_MINOR 1)
-set(CPACK_PACKAGE_VERSION_PATCH 0)
-set(CPACK_PACKAGE_INSTALL_DIRECTORY "ANTS")
-set(CPACK_BINARY_GENERATORS "DragNDrop TGZ TZ")
-# This must always be last!
-include(CPack)

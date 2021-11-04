@@ -58,7 +58,12 @@ static void antsRegistrationInitializeCommandLineOptions( itk::ants::CommandLine
     + std::string( "Optionally, one can choose to warp the moving image to the fixed space and, if the " )
     + std::string( "inverse transform exists, one can also output the warped fixed image.  Note that " )
     + std::string( "only the images specified in the first metric call are warped.  Use antsApplyTransforms " )
-    + std::string( "to warp other images using the resultant transform(s)." );
+    + std::string( "to warp other images using the resultant transform(s). When a composite transform is not specified, " )
+    + std::string( "linear transforms are specified with a \'.mat\' suffix and displacement fields with a " )
+    + std::string( "\'Warp.nii.gz\' suffix (and \'InverseWarp.nii.gz\', when applicable.  In addition, for " )
+    + std::string( "velocity-based transforms, the full velocity field is written to file (\'VelocityField.nii.gz\') as long as the " )
+    + std::string( "collapse transforms flag is turned off (\'-z 0\')." );
+    ;
 
   OptionType::Pointer option = OptionType::New();
   option->SetLongName( "output" );
@@ -83,7 +88,7 @@ static void antsRegistrationInitializeCommandLineOptions( itk::ants::CommandLine
   OptionType::Pointer option = OptionType::New();
   option->SetLongName( "save-state" );
   option->SetShortName( 'j' );
-  option->SetUsageOption( 0, "saveSateAsTransform" );
+  option->SetUsageOption( 0, "saveStateAsTransform" );
   option->SetDescription( description );
   parser->AddOption( option );
   }
@@ -118,7 +123,7 @@ static void antsRegistrationInitializeCommandLineOptions( itk::ants::CommandLine
 
 // This is currently not functioning properly for all linear transforms.  If I
 // restrict the linear transforms to rigid transforms, then it seems to work.
-// I think there's something in working with images that doesn't work properly
+// I think there's something in working with images that don't work properly
 // with a generic affine transform in the header.  You can certainly store it
 // and read it from the header but perhaps this interferes with something fundamental
 // like transforming indices to physical coordinates.  I'll have to investigate
@@ -353,22 +358,22 @@ static void antsRegistrationInitializeCommandLineOptions( itk::ants::CommandLine
     6, "GaussianDisplacementField[gradientStep,updateFieldVarianceInVoxelSpace,totalFieldVarianceInVoxelSpace]" );
   option->SetUsageOption(
     7,
-    "BSplineDisplacementField[gradientStep,updateFieldMeshSizeAtBaseLevel,totalFieldMeshSizeAtBaseLevel,<splineOrder=3>]" );
+    "BSplineDisplacementField[gradientStep,updateFieldMeshSizeAtBaseLevel,<totalFieldMeshSizeAtBaseLevel=0>,<splineOrder=3>]" );
   option->SetUsageOption(
     8,
     "TimeVaryingVelocityField[gradientStep,numberOfTimeIndices,updateFieldVarianceInVoxelSpace,updateFieldTimeVariance,totalFieldVarianceInVoxelSpace,totalFieldTimeVariance]" );
   option->SetUsageOption(
     9,
     "TimeVaryingBSplineVelocityField[gradientStep,velocityFieldMeshSize,<numberOfTimePointSamples=4>,<splineOrder=3>]" );
-  option->SetUsageOption( 10, "SyN[gradientStep,updateFieldVarianceInVoxelSpace,totalFieldVarianceInVoxelSpace]" );
+  option->SetUsageOption( 10, "SyN[gradientStep,<updateFieldVarianceInVoxelSpace=3>,<totalFieldVarianceInVoxelSpace=0>]" );
   option->SetUsageOption(
-    11, "BSplineSyN[gradientStep,updateFieldMeshSizeAtBaseLevel,totalFieldMeshSizeAtBaseLevel,<splineOrder=3>]" );
+    11, "BSplineSyN[gradientStep,updateFieldMeshSizeAtBaseLevel,<totalFieldMeshSizeAtBaseLevel=0>,<splineOrder=3>]" );
   option->SetUsageOption(
     12,
     "Exponential[gradientStep,updateFieldVarianceInVoxelSpace,velocityFieldVarianceInVoxelSpace,<numberOfIntegrationSteps>]" );
   option->SetUsageOption(
     13,
-    "BSplineExponential[gradientStep,updateFieldMeshSizeAtBaseLevel,velocityFieldMeshSizeAtBaseLevel,<numberOfIntegrationSteps>,<splineOrder=3>]" );
+    "BSplineExponential[gradientStep,updateFieldMeshSizeAtBaseLevel,<velocityFieldMeshSizeAtBaseLevel=0>,<numberOfIntegrationSteps>,<splineOrder=3>]" );
   // FLASH edit
   // TODO: eventually switch to gaussian reg?
   option->SetUsageOption(
@@ -397,8 +402,8 @@ static void antsRegistrationInitializeCommandLineOptions( itk::ants::CommandLine
 
   {
   std::string description = std::string( "Specify the sigma of gaussian smoothing at each level.  " )
-    + std::string( "Units are given in terms of voxels (\'vox\') or physical spacing (\'mm\'). " )
-    + std::string( "Example usage is \'4x2x1mm\' and \'4x2x1vox\' where no units implies voxel spacing." );
+    + std::string( R"(Units are given in terms of voxels ('vox') or physical spacing ('mm'). )" )
+    + std::string( R"(Example usage is '4x2x1mm' and '4x2x1vox' where no units implies voxel spacing.)" );
 
   OptionType::Pointer option = OptionType::New();
   option->SetLongName( "smoothing-sigmas" );
@@ -491,6 +496,18 @@ static void antsRegistrationInitializeCommandLineOptions( itk::ants::CommandLine
   }
 
   {
+  std::string description = std::string( "Use a fixed seed for random number generation. " )
+    + std::string( "By default, the system clock is used to initialize the seeding. " )
+    + std::string( "The fixed seed can be any nonzero int value." );
+
+  OptionType::Pointer option = OptionType::New();
+  option->SetLongName( "random-seed" );
+  option->SetUsageOption( 0, "seedValue" );
+  option->SetDescription( description );
+  parser->AddOption( option );
+  }
+
+  {
   std::string description = std::string( "Verbose output." );
 
   OptionType::Pointer option = OptionType::New();
@@ -526,7 +543,7 @@ static void antsRegistrationInitializeCommandLineOptions( itk::ants::CommandLine
 // entry point for the library; parameter 'args' is equivalent to 'argv' in (argc,argv) of commandline parameters to
 // 'main()'
 
-int antsRegistration( std::vector<std::string> args, std::ostream * /*out_stream = ITK_NULLPTR */ )
+int antsRegistration( std::vector<std::string> args, std::ostream * /*out_stream = nullptr */ )
 {
   try
     {
@@ -545,7 +562,7 @@ int antsRegistration( std::vector<std::string> args, std::ostream * /*out_stream
       // place the null character in the end
       argv[i][args[i].length()] = '\0';
       }
-    argv[argc] = ITK_NULLPTR;
+    argv[argc] = nullptr;
     // class to automatically cleanup argv upon destruction
     class Cleanup_argv
     {
@@ -576,7 +593,7 @@ private:
     parser->SetCommand( argv[0] );
 
     std::string commandDescription = std::string( "This program is a user-level " )
-      + std::string( "registration application meant to utilize ITKv4-only classes. The user can specify " )
+      + std::string( "registration application meant to utilize classes in ITK v4.0 and later. The user can specify " )
       + std::string( "any number of \"stages\" where a stage consists of a transform; an image metric; " )
       + std::string( "and iterations, shrink factors, and smoothing sigmas for each level.  " )
       + std::string( "Note that explicitly setting the dimensionality, metric, transform, output, " )

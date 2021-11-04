@@ -15,7 +15,7 @@ RegTypeToFileName(const std::string & type, bool & writeInverse, bool & writeVel
       str == "timevaryingvelocityfield" ||
       str == "tvf"  ||
       str == "exponential" ||
-      str == "bsplineexponential")
+      str == "bsplineexponential" )
     {
     writeInverse = true;
     }
@@ -92,7 +92,7 @@ RegTypeToFileName(const std::string & type, bool & writeInverse, bool & writeVel
            str == "bsplinesyn" ||
            str == "exp" ||
            str == "exponential" ||
-           str == "bsplineexponential")
+           str == "bsplineexponential" )
     {
     if(minc)
       return "_NL.xfm";
