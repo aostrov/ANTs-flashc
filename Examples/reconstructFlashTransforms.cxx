@@ -39,11 +39,11 @@ namespace ants
 
 const int ImageDimension = 3; // TODO: generalize
 bool DoRungeKuttaForIntegration = false; // TODO: add to interface
-typedef itk::Vector< float, ImageDimension*2 >                           ComplexVectorType;
-typedef itk::Image< ComplexVectorType, ImageDimension >                  ComplexFieldType;
-typedef itk::Image< float, ImageDimension >                              ReferenceImageType;
-typedef itk::Vector< float, ImageDimension >                             DisplacementVectorType;
-typedef itk::Image< DisplacementVectorType, ImageDimension >             DisplacementFieldType;
+using ComplexVectorType = itk::Vector< float, ImageDimension*2 > ;
+using ComplexFieldType = itk::Image< ComplexVectorType, ImageDimension >;
+using ReferenceImageType = itk::Image< float, ImageDimension >;
+using DisplacementVectorType = itk::Vector< float, ImageDimension >;
+using DisplacementFieldType = itk::Image< DisplacementVectorType, ImageDimension >;
 
 // v0, reference image, their spatial info, and fftoper must be global (used across entire program)
 FieldComplex3D * v0;
@@ -324,7 +324,7 @@ void reconstructFlashTransforms(char * velocity_field_filename,
       	                        int operator_order)
 {
   // Read initial velocity, convert to pyca object
-  typedef itk::ImageFileReader<ComplexFieldType> ComplexFieldReaderType;
+  using ComplexFieldReaderType = itk::ImageFileReader<ComplexFieldType> ;
   typename ComplexFieldReaderType::Pointer velocity_reader = ComplexFieldReaderType::New();
   velocity_reader->SetFileName(velocity_field_filename);
   velocity_reader->Update();
@@ -336,7 +336,7 @@ void reconstructFlashTransforms(char * velocity_field_filename,
   // Read reference image, convert spatial domain parameters to pyca GridInfo object
   // TODO: may not actually need to read in the data, maybe IOFactory thing (see WarpImageMultiTransform, before call to actual function)
   //       it can grab the kinds of params I need without reading in the image data
-  typedef itk::ImageFileReader<ReferenceImageType> ImageReaderType;
+  using ImageReaderType = itk::ImageFileReader<ReferenceImageType> ;
   typename ImageReaderType::Pointer reference_reader = ImageReaderType::New();
   reference_reader->SetFileName(reference_image_filename);
   reference_reader->Update();
@@ -371,7 +371,7 @@ void reconstructFlashTransforms(char * velocity_field_filename,
   pycaToItkVectorField(*inverseDisplacement, *inverseTransformSpatial);
 
   // write out reconstructed displacement fields
-  typedef itk::ImageFileWriter<DisplacementFieldType> DisplacementFieldWriterType;
+  using DisplacementFieldWriterType = itk::ImageFileWriter<DisplacementFieldType> ;
   typename DisplacementFieldWriterType::Pointer writer = DisplacementFieldWriterType::New();
   writer->SetFileName(output_prefix + "-Warp.nii.gz");
   writer->SetInput(inverseDisplacement);
@@ -384,7 +384,7 @@ void reconstructFlashTransforms(char * velocity_field_filename,
 
 // entry point for the library; parameter 'args' is equivalent to 'argv' in (argc,argv) of commandline parameters to
 // 'main()'
-int reconstructFlashTransforms( std::vector<std::string> args, std::ostream* /*out_stream = ITK_NULLPTR */ )
+int reconstructFlashTransforms( std::vector<std::string> args, std::ostream* /*out_stream = nullptr */ )
 {
   // put the arguments coming in as 'args' into standard (argc,argv) format;
   // 'args' doesn't have the command name as first, argument, so add it manually;
@@ -402,7 +402,7 @@ int reconstructFlashTransforms( std::vector<std::string> args, std::ostream* /*o
     // place the null character in the end
     argv[i][args[i].length()] = '\0';
     }
-  argv[argc] = ITK_NULLPTR;
+  argv[argc] = nullptr;
     // class to automatically cleanup argv upon destruction
   class Cleanup_argv
   {
