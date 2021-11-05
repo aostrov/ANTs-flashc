@@ -60,17 +60,25 @@ We use *probability* to denote a probability image with values in range 0 to 1.
 We use *label* to denote a label image with values in range 0 to N.
 
      -d:  Image dimension                       2 or 3 (for 2- or 3-dimensional image)
+
      -a:  Anatomical image                      Structural *intensity* image, typically T1.  If more than one
                                                 anatomical image is specified, subsequently specified
                                                 images are used during the segmentation process.  However,
                                                 only the first image is used in the registration of priors.
-                                                Our suggestion would be to specify the T1 as the first image.
-     -e:  Brain template                        Anatomical *intensity* template (possibly created using a population
-                                                data set with buildtemplateparallel.sh in ANTs).  This template is
-                                                *not* skull-stripped.
-     -m:  Brain extraction probability mask     Brain *probability* mask created using e.g. LPBA40 labels which
-                                                have brain masks defined, and warped to anatomical template and
-                                                averaged resulting in a probability image.
+                                                We recommend using the T1 as the first image.
+
+     -e:  Brain segmentation template           Anatomical *intensity* template. This template is *not* skull-stripped.
+                                                The following images must be in the same space as this template:
+                                                    * Brain probability mask (-m)
+                                                    * Segmentation priors (-p).
+                                                If used, the following optional images must also be in the same space as
+                                                this template:
+                                                    * Registration metric mask (-f)
+                                                    * Thickness prior image (-r).
+
+     -m:  Brain extraction probability mask     Brain *probability* mask in the segmentation template space. A binary mask 
+                                                is an acceptable probability image.
+
      -p:  Brain segmentation priors             Tissue *probability* priors corresponding to the image specified
                                                 with the -e option.  Specified using c-style formatting, e.g.
                                                 -p labelsPriors%02d.nii.gz.  We assume that the first four priors
@@ -79,7 +87,8 @@ We use *label* to denote a label image with values in range 0 to N.
                                                   2:  cortical gm
                                                   3:  wm
                                                   4:  deep gm
-     -o:  Output prefix                         The following images are created:
+
+     -o:  Output prefix                         A partial list of output images:
                                                   * ${OUTPUT_PREFIX}BrainExtractionMask.${OUTPUT_SUFFIX}
                                                   * ${OUTPUT_PREFIX}BrainSegmentation.${OUTPUT_SUFFIX}
                                                   * ${OUTPUT_PREFIX}BrainSegmentation*N4.${OUTPUT_SUFFIX} One for each anatomical input
@@ -91,37 +100,63 @@ We use *label* to denote a label image with values in range 0 to N.
                                                   * ${OUTPUT_PREFIX}BrainSegmentationPosteriors*N.${OUTPUT_SUFFIX} where there are N priors
                                                   *                              Number formatting of posteriors matches that of the priors.
                                                   * ${OUTPUT_PREFIX}CorticalThickness.${OUTPUT_SUFFIX}
+                                                More information on the output can be found on the ANTs Wiki
+                                                https://github.com/ANTsX/ANTs/wiki.
 
 Optional arguments:
 
-     -s:  image file suffix                     Any of the standard ITK IO formats e.g. nrrd, nii.gz (default), mhd
-     -t:  template for t1 registration          Anatomical *intensity* template (assumed to be skull-stripped).  A common
-                                                use case would be where this would be the same template as specified in the
-                                                -e option which is not skull stripped.
-                                                We perform the registration (fixed image = individual subject
-                                                and moving image = template) to produce the files.
+     -s:  image file suffix                     Any of the standard ITK IO formats e.g. nrrd, nii.gz (default), mhd.
+
+     -t:  template for t1 registration          Anatomical *intensity* template. This template *must* be skull-stripped.
+                                                This template is used to produce a final, high-quality registration between
+                                                the bias-corrected, skull-stripped subject anatomical image and the template.
+                                                This template will commonly be a skull-stripped version of the template passed
+                                                with -e. We perform the registration with fixed image = (this template)
+                                                and moving image = (input anatomical image).
                                                 The output from this step is
-                                                  * ${OUTPUT_PREFIX}TemplateToSubject0GenericAffine.mat
-                                                  * ${OUTPUT_PREFIX}TemplateToSubject1Warp.nii.gz
-                                                  * ${OUTPUT_PREFIX}TemplateToSubject1InverseWarp.nii.gz
-                                                  * ${OUTPUT_PREFIX}TemplateToSubjectLogJacobian.${OUTPUT_SUFFIX}
-     -f:  extraction registration mask          Mask (defined in the template space) used during registration
-                                                for brain extraction.
+                                                  * Forward warps:
+                                                    - ${OUTPUT_PREFIX}SubjectToTemplate1Warp.nii.gz
+                                                    - ${OUTPUT_PREFIX}SubjectToTemplate0GenericAffine.mat
+                                                  * Inverse warps:
+                                                    - ${OUTPUT_PREFIX}TemplateToSubject1GenericAffine.mat
+                                                    - ${OUTPUT_PREFIX}TemplateToSubject0Warp.nii.gz
+                                                  * Jacobian:
+                                                    - ${OUTPUT_PREFIX}SubjectToTemplateLogJacobian.${OUTPUT_SUFFIX}
+
+                                                More information on the how to use these images can be found on the ANTs Wiki
+                                                https://github.com/ANTsX/ANTs/wiki.
+
+     -f:  extraction registration mask          Binary metric mask defined in the segmentation template space (-e). During the
+                                                registration for brain extraction, the similarity metric is only computed within 
+                                                this mask.
+
      -k:  keep temporary files                  Keep brain extraction/segmentation warps, etc (default = 0).
+
      -g:  denoise anatomical images             Denoise anatomical images (default = 0).
-     -i:  max iterations for registration       ANTS registration max iterations (default = 100x100x70x20)
-     -w:  Atropos prior segmentation weight     Atropos spatial prior *probability* weight for the segmentation (default = 0.25)
-     -n:  number of segmentation iterations     N4 -> Atropos -> N4 iterations during segmentation (default = 3)
+
+     -i:  max iterations for registration       ANTS registration max iterations (default = 100x100x70x20).
+
+     -w:  Atropos prior segmentation weight     Atropos spatial prior *probability* weight for the segmentation (default = 0.25).
+
+     -n:  number of segmentation iterations     N4 -> Atropos -> N4 iterations during segmentation (default = 3).
+
      -b:  posterior formulation                 Atropos posterior formulation and whether or not to use mixture model proportions.
-                                                e.g 'Socrates[1]' (default) or 'Aristotle[1]'.  Choose the latter if you
+                                                e.g 'Socrates[ 1 ]' (default) or 'Aristotle[ 1 ]'.  Choose the latter if you
                                                 want use the distance priors (see also the -l option for label propagation
                                                 control).
-     -j:  use floating-point precision          Use floating point precision in registrations (default = 0)
-     -u:  use random seeding                    Use random number generated from system clock in Atropos (default = 1)
-     -v:  use b-spline smoothing                Use B-spline SyN for registrations and B-spline exponential mapping in DiReCT.
-     -r:  cortical label image                  Cortical ROI labels to use as a prior for ATITH.
+
+     -j:  use floating-point precision          Use single float precision in registrations (default = 0).
+
+     -u:  use random seeding                    Use random number generated from system clock in Atropos (default = 1).
+
+     -v:  use b-spline smoothing                Use B-spline SyN for registrations and B-spline exponential mapping in DiReCT (default = 0).
+
+     -r:  cortical thickness prior image        Cortical thickness prior image in the template space, which contains an estimated
+                                                upper limit to the cortical thickness at each voxel. If not specified, the prior is
+                                                set to 10mm throughout the brain.
+
      -l:  label propagation                     Incorporate a distance prior one the posterior formulation.  Should be
-                                                of the form 'label[lambda,boundaryProbability]' where label is a value
+                                                of the form 'label[ lambda,boundaryProbability ]' where label is a value
                                                 of 1,2,3,... denoting label ID.  The label probability for anything
                                                 outside the current label
 
@@ -129,19 +164,26 @@ Optional arguments:
 
                                                 Intuitively, smaller lambda values will increase the spatial capture
                                                 range of the distance prior.  To apply to all label values, simply omit
-                                                specifying the label, i.e. -l [lambda,boundaryProbability].
-     -c                                         Add prior combination to combined gray and white matters.  For example,
-                                                when calling KK for normal subjects, we combine the deep gray matter
-                                                segmentation/posteriors with the white matter segmentation/posteriors.
-                                                An additional example would be performing cortical thickness in the presence
-                                                of white matter lesions.  We can accommodate this by specifying a lesion mask
-                                                posterior as an additional posterior (suppose label '7'), and then combine
-                                                this with white matter by specifying '-c WM[7]' or '-c 3[7]'.
+                                                specifying the label, i.e. '-l "[ lambda,boundaryProbability ]"'.
+
+     -c:  Additional priors for thickness       Add segmentation classes to be treated as gray or white matter for thickness
+                                                estimation. For example, when calling KellyKapowski for normal subjects, we
+                                                combine the deep gray matter segmentation/posteriors (class 4) with the white
+                                                matter segmentation/posteriors (class 3).
+                                                Another example would be computing cortical thickness in the presence
+                                                of white matter lesions. We can accommodate this by specifying a lesion mask
+                                                posterior as an additional posterior (suppose label '7'), combining this with
+                                                normal white matter in the thickness estimation by specifying '-c "WM[ 7 ]"' 
+                                                or '-c "3[ 7 ]"'.
+
      -q:  Use quick registration parameters     If = 1, use antsRegistrationSyNQuick.sh as the basis for registration
                                                 during brain extraction, brain segmentation, and (optional) normalization
-                                                to a template.  Otherwise use antsRegistrationSyN.sh (default = 0).
-     -x:                                        Number of iterations within Atropos (default 5).
-     -y:                                        Which stage of ACT to run (default = 0, run all).  Tries to split in 2 hour chunks.
+                                                to a template.  Otherwise use a slower registration comparable to
+                                                antsRegistrationSyN.sh (default = 0).
+
+     -x:  Atropos iterations                    Number of iterations within Atropos (default 5).
+
+     -y:  Script stage to run                   Which stage of ACT to run (default = 0, run all).  Tries to split in 2 hour chunks.
                                                 Will produce OutputNameACTStageNComplete.txt for each completed stage.
                                                 1: brain extraction
                                                 2: template registration
@@ -149,6 +191,7 @@ Optional arguments:
                                                 4: template registration (improved, optional)
                                                 5: DiReCT cortical thickness
                                                 6: qc, quality control and summary measurements
+
      -z:  Test / debug mode                     If > 0, runs a faster version of the script. Only for testing. Implies -u 0.
                                                 Requires single thread computation for complete reproducibility.
 USAGE
@@ -226,7 +269,7 @@ echoParameters() {
       registration template   = ${REGISTRATION_TEMPLATE}
 
     ANTs parameters:
-      metric                  = ${ANTS_METRIC}[fixedImage,movingImage,${ANTS_METRIC_PARAMS}]
+      metric                  = ${ANTS_METRIC}[ fixedImage,movingImage,${ANTS_METRIC_PARAMS} ]
       regularization          = ${ANTS_REGULARIZATION}
       transformation          = ${ANTS_TRANSFORMATION}
       max iterations          = ${ANTS_MAX_ITERATIONS}
@@ -255,10 +298,11 @@ DEBUG_MODE=0
 ACT_STAGE=0 # run all stages
 
 function logCmd() {
-  cmd="$*"
+  cmd="$@"
   echo "BEGIN >>>>>>>>>>>>>>>>>>>>"
   echo $cmd
-  $cmd
+  # Preserve quoted parameters by running "$@" instead of $cmd
+  ( "$@" )
 
   cmdExit=$?
 
@@ -328,39 +372,39 @@ ATROPOS_SEGMENTATION_PRIOR_WEIGHT=0.25
 
 ANTS=${ANTSPATH}/antsRegistration
 ANTS_MAX_ITERATIONS="100x100x70x20"
-ANTS_TRANSFORMATION="SyN[0.1,3,0]"
+ANTS_TRANSFORMATION="SyN[ 0.1,3,0 ]"
 ANTS_LINEAR_METRIC_PARAMS="1,32,Regular,0.25"
-ANTS_LINEAR_CONVERGENCE="[1000x500x250x100,1e-8,10]"
+ANTS_LINEAR_CONVERGENCE="[ 1000x500x250x100,1e-8,10 ]"
 ANTS_METRIC="CC"
 ANTS_METRIC_PARAMS="1,4"
 
 WARP=${ANTSPATH}/antsApplyTransforms
 
 N4=${ANTSPATH}/N4BiasFieldCorrection
-N4_CONVERGENCE_1="[50x50x50x50,0.0000001]"
-N4_CONVERGENCE_2="[50x50x50x50,0.0000001]"
+N4_CONVERGENCE_1="[ 50x50x50x50,0.0000001 ]"
+N4_CONVERGENCE_2="[ 50x50x50x50,0.0000001 ]"
 N4_SHRINK_FACTOR_1=4
 N4_SHRINK_FACTOR_2=2
-N4_BSPLINE_PARAMS="[200]"
+N4_BSPLINE_PARAMS="[ 200 ]"
 
 ATROPOS=${ANTSPATH}/Atropos
 
 ATROPOS_SEGMENTATION_INITIALIZATION="PriorProbabilityImages"
 ATROPOS_SEGMENTATION_LIKELIHOOD="Gaussian"
-ATROPOS_SEGMENTATION_CONVERGENCE="[5,0.0]"
-ATROPOS_SEGMENTATION_POSTERIOR_FORMULATION="Socrates[1]"
+ATROPOS_SEGMENTATION_CONVERGENCE="[ 5,0.0 ]"
+ATROPOS_SEGMENTATION_POSTERIOR_FORMULATION="Socrates[ 1 ]"
 ATROPOS_SEGMENTATION_NUMBER_OF_ITERATIONS=3
 ATROPOS_SEGMENTATION_INTERNAL_ITERATIONS=5 # to be backward compatible but i like 25
 ATROPOS_SEGMENTATION_LABEL_PROPAGATION=()
 
 DIRECT=${ANTSPATH}/KellyKapowski
-DIRECT_CONVERGENCE="[45,0.0,10]"
+DIRECT_CONVERGENCE="[ 45,0.0,10 ]"
 DIRECT_THICKNESS_PRIOR="10"
 DIRECT_GRAD_STEP_SIZE="0.025"
 DIRECT_SMOOTHING_PARAMETER="1.5"
 DIRECT_NUMBER_OF_DIFF_COMPOSITIONS="10"
 
-PRIOR_COMBINATIONS=( 'WM[4]' )
+PRIOR_COMBINATIONS=( 'WM[ 4 ]' )
 
 USE_FLOAT_PRECISION=0
 USE_BSPLINE_SMOOTHING=0
@@ -467,7 +511,7 @@ fi
 
 if [[ $USE_BSPLINE_SMOOTHING -ne 0 ]];
   then
-    ANTS_TRANSFORMATION="BSplineSyN[0.1,26,0,3]"
+    ANTS_TRANSFORMATION="BSplineSyN[ 0.1,26,0,3 ]"
     DIRECT_SMOOTHING_PARAMETER="5.75"
   fi
 
@@ -482,14 +526,14 @@ if [[ $DEBUG_MODE -gt 0 ]];
     # certain things are hard coded elsewhere, eg number of levels
 
     ANTS_MAX_ITERATIONS="40x40x20x0"
-    ANTS_LINEAR_CONVERGENCE="[100x100x50x0,1e-8,10]"
+    ANTS_LINEAR_CONVERGENCE="[ 100x100x50x0,1e-8,10 ]"
     ANTS_METRIC_PARAMS="1,2"
 
     # I think this is the number of times we run the whole N4 / Atropos thing, at the cost of about 10 minutes a time
     ATROPOS_SEGMENTATION_NUMBER_OF_ITERATIONS=1
     ATROPOS_SEGMENTATION_INTERNAL_ITERATIONS=5 # internal to atropos
 
-    DIRECT_CONVERGENCE="[5,0.0,10]"
+    DIRECT_CONVERGENCE="[ 5,0.0,10 ]"
 
     # Fix random seed to replicate exact results on each run
     USE_RANDOM_SEEDING=0
@@ -521,7 +565,7 @@ FORMAT=${FORMAT%%d*}
 
 REPCHARACTER=''
 TOTAL_LENGTH=0
-if [ ${#FORMAT} -eq 2 ]
+if [[ ${#FORMAT} -eq 2 ]]
   then
     REPCHARACTER=${FORMAT:0:1}
     TOTAL_LENGTH=${FORMAT:1:1}
@@ -613,7 +657,7 @@ CORTICAL_THICKNESS_GRAY_MATTER_OTHER_LABELS=()
 for(( j=0; j < ${#PRIOR_COMBINATIONS[@]}; j++ ))
   do
     echo ${PRIOR_COMBINATIONS[$j]}
-    COMBINATION=( $( echo ${PRIOR_COMBINATIONS[$j]} | tr "[]," "\n" ) )
+    COMBINATION=( $( echo ${PRIOR_COMBINATIONS[$j]} | tr -d ' ' | tr '[],' '\n' ) )
 
     echo ${COMBINATION[@]}
 
@@ -683,7 +727,7 @@ EXTRACTED_SEGMENTATION_BRAIN=${OUTPUT_PREFIX}BrainExtractionBrain.${OUTPUT_SUFFI
 EXTRACTION_GENERIC_AFFINE=${OUTPUT_PREFIX}BrainExtractionPrior0GenericAffine.mat
 EXTRACTED_BRAIN_TEMPLATE=${OUTPUT_PREFIX}ExtractedTemplateBrain.${OUTPUT_SUFFIX}
 if [[ ! -s ${OUTPUT_PREFIX}ACTStage1Complete.txt ]]; then
-if [[ ${ACT_STAGE} -eq 0 ]] || [[ ${ACT_STAGE} -eq 1  ]] ; then # BAStages bxt
+if [[ ${ACT_STAGE} -eq 0 ]] || [[ ${ACT_STAGE} -eq 1 ]] ; then # BAStages bxt
 if [[ ! -f ${BRAIN_EXTRACTION_MASK} ]];
   then
 
@@ -761,7 +805,7 @@ SEGMENTATION_CONVERGENCE_FILE=${BRAIN_SEGMENTATION_OUTPUT}Convergence.txt
 
 if [[ ! -s ${OUTPUT_PREFIX}ACTStage2Complete.txt ]]  && \
    [[   -s ${OUTPUT_PREFIX}ACTStage1Complete.txt ]]; then
-  if [[ ${ACT_STAGE} -eq 0 ]] || [[ ${ACT_STAGE} -eq 2  ]] ; then # BAStages reg
+  if [[ ${ACT_STAGE} -eq 0 ]] || [[ ${ACT_STAGE} -eq 2 ]] ; then # BAStages reg
     echo
     echo "--------------------------------------------------------------------------------------"
     echo " Brain segmentation using the following steps:"
@@ -830,17 +874,17 @@ if [[ ! -s ${OUTPUT_PREFIX}ACTStage2Complete.txt ]]  && \
                     basecall="${basecall} -p f"
                   fi
             else
-              basecall="${ANTS} -d ${DIMENSION} -u 1 -w [0.0,0.999] -o ${SEGMENTATION_WARP_OUTPUT_PREFIX} --float ${USE_FLOAT_PRECISION} --verbose 1"
+              basecall="${ANTS} -d ${DIMENSION} -u 1 -w [ 0.0,0.999 ] -o ${SEGMENTATION_WARP_OUTPUT_PREFIX} --float ${USE_FLOAT_PRECISION} --verbose 1"
               IMAGES="${EXTRACTED_SEGMENTATION_BRAIN},${EXTRACTED_BRAIN_TEMPLATE}"
               if [[ -f ${EXTRACTION_GENERIC_AFFINE} ]];
                 then
-                  basecall="${basecall} -r [${EXTRACTION_GENERIC_AFFINE},1]"
+                  basecall="${basecall} -r [ ${EXTRACTION_GENERIC_AFFINE},1 ]"
                 else
-                  basecall="${basecall} -r [${IMAGES},1]"
+                  basecall="${basecall} -r [ ${IMAGES},1 ]"
                 fi
-              basecall="${basecall} -x [${SEGMENTATION_MASK_DILATED}]"
-              stage1="-m MI[${IMAGES},${ANTS_LINEAR_METRIC_PARAMS}] -c ${ANTS_LINEAR_CONVERGENCE} -t Affine[0.1] -f 8x4x2x1 -s 4x2x1x0"
-              stage2="-m CC[${IMAGES},1,4] -c [${ANTS_MAX_ITERATIONS},1e-9,15] -t ${ANTS_TRANSFORMATION} -f 6x4x2x1 -s 3x2x1x0"
+              basecall="${basecall} -x [ ${SEGMENTATION_MASK_DILATED} ]"
+              stage1="-m MI[ ${IMAGES},${ANTS_LINEAR_METRIC_PARAMS} ] -c ${ANTS_LINEAR_CONVERGENCE} -t Affine[ 0.1 ] -f 8x4x2x1 -s 4x2x1x0"
+              stage2="-m CC[ ${IMAGES},1,4 ] -c [ ${ANTS_MAX_ITERATIONS},1e-9,15 ] -t ${ANTS_TRANSFORMATION} -f 6x4x2x1 -s 3x2x1x0"
 
               basecall="${basecall} ${stage1} ${stage2}"
             fi
@@ -908,7 +952,7 @@ if [[ ! -s ${OUTPUT_PREFIX}ACTStage2Complete.txt ]]  && \
 if [[ ! -s ${OUTPUT_PREFIX}ACTStage3Complete.txt ]] && \
    [[   -s ${OUTPUT_PREFIX}ACTStage2Complete.txt ]] && \
    [[   -s ${OUTPUT_PREFIX}ACTStage1Complete.txt ]] ; then
-  if [[ ${ACT_STAGE} -eq 0 ]] || [[ ${ACT_STAGE} -eq 3  ]] ; then # BAStages seg
+  if [[ ${ACT_STAGE} -eq 0 ]] || [[ ${ACT_STAGE} -eq 3 ]] ; then # BAStages seg
     time_start_brain_segmentation=`date +%s`
     ATROPOS_ANATOMICAL_IMAGES_COMMAND_LINE='';
     for (( j = 0; j < ${#ANATOMICAL_IMAGES[@]}; j++ ))
@@ -932,7 +976,7 @@ if [[ ! -s ${OUTPUT_PREFIX}ACTStage3Complete.txt ]] && \
 
     logCmd ${ANTSPATH}/antsAtroposN4.sh \
       -d ${DIMENSION} \
-      -b ${ATROPOS_SEGMENTATION_POSTERIOR_FORMULATION} \
+      -b "${ATROPOS_SEGMENTATION_POSTERIOR_FORMULATION}" \
       ${ATROPOS_ANATOMICAL_IMAGES_COMMAND_LINE} \
       ${ATROPOS_LABEL_PROPAGATION_COMMAND_LINE} \
       -x ${BRAIN_EXTRACTION_MASK} \
@@ -958,7 +1002,7 @@ if [[ ! -s ${OUTPUT_PREFIX}ACTStage3Complete.txt ]] && \
     ## Don't de-noise a second time
     logCmd ${ANTSPATH}/antsAtroposN4.sh \
       -d ${DIMENSION} \
-      -b ${ATROPOS_SEGMENTATION_POSTERIOR_FORMULATION} \
+      -b "${ATROPOS_SEGMENTATION_POSTERIOR_FORMULATION}" \
       ${ATROPOS_ANATOMICAL_IMAGES_COMMAND_LINE} \
       ${ATROPOS_LABEL_PROPAGATION_COMMAND_LINE} \
       -x ${BRAIN_EXTRACTION_MASK} \
@@ -1068,10 +1112,10 @@ if [[ -f ${REGISTRATION_TEMPLATE} ]] && [[ ! -f $REGISTRATION_LOG_JACOBIAN ]];
           fi
       else
         IMAGES="${REGISTRATION_TEMPLATE},${EXTRACTED_SEGMENTATION_BRAIN_N4_IMAGE}"
-        basecall="${ANTS} -d ${DIMENSION} -v 1 -u 1 -w [0.0,0.999] -o ${REGISTRATION_TEMPLATE_OUTPUT_PREFIX} -r [${IMAGES},1] --float ${USE_FLOAT_PRECISION}"
-        stage1="-m MI[${IMAGES},${ANTS_LINEAR_METRIC_PARAMS}] -c ${ANTS_LINEAR_CONVERGENCE} -t Rigid[0.1] -f 8x4x2x1 -s 3x2x1x0"
-        stage2="-m MI[${IMAGES},${ANTS_LINEAR_METRIC_PARAMS}] -c ${ANTS_LINEAR_CONVERGENCE} -t Affine[0.1] -f 8x4x2x1 -s 3x2x1x0"
-        stage3="-m CC[${IMAGES},1,4] -c [${ANTS_MAX_ITERATIONS},1e-9,15] -t ${ANTS_TRANSFORMATION} -f 6x4x2x1 -s 3x2x1x0"
+        basecall="${ANTS} -d ${DIMENSION} -v 1 -u 1 -w [ 0.0,0.999 ] -o ${REGISTRATION_TEMPLATE_OUTPUT_PREFIX} -r [ ${IMAGES},1 ] --float ${USE_FLOAT_PRECISION}"
+        stage1="-m MI[ ${IMAGES},${ANTS_LINEAR_METRIC_PARAMS} ] -c ${ANTS_LINEAR_CONVERGENCE} -t Rigid[ 0.1 ] -f 8x4x2x1 -s 3x2x1x0"
+        stage2="-m MI[ ${IMAGES},${ANTS_LINEAR_METRIC_PARAMS} ] -c ${ANTS_LINEAR_CONVERGENCE} -t Affine[ 0.1 ] -f 8x4x2x1 -s 3x2x1x0"
+        stage3="-m CC[ ${IMAGES},1,4 ] -c [ ${ANTS_MAX_ITERATIONS},1e-9,15 ] -t ${ANTS_TRANSFORMATION} -f 6x4x2x1 -s 3x2x1x0"
         basecall="${basecall} ${stage1} ${stage2} ${stage3}"
       fi
     exe_template_registration_1="${basecall}"
@@ -1104,7 +1148,7 @@ if [[ -f ${REGISTRATION_TEMPLATE} ]] && [[ ! -f $REGISTRATION_LOG_JACOBIAN ]];
       echo "The transform file ${REGISTRATION_SUBJECT_WARP} does not exist."
       exit 1
     fi
-    logCmd ${ANTSPATH}/antsApplyTransforms -d ${DIMENSION} -o Linear[$REGISTRATION_SUBJECT_GENERIC_AFFINE,1] -t $REGISTRATION_TEMPLATE_GENERIC_AFFINE --verbose 1
+    logCmd ${ANTSPATH}/antsApplyTransforms -d ${DIMENSION} -o Linear[ $REGISTRATION_SUBJECT_GENERIC_AFFINE,1 ] -t $REGISTRATION_TEMPLATE_GENERIC_AFFINE --verbose 1
 
     time_end_template_registration=`date +%s`
     time_elapsed_template_registration=$((time_end_template_registration - time_start_template_registration))
@@ -1155,7 +1199,7 @@ if [[ ! -s ${OUTPUT_PREFIX}ACTStage5Complete.txt ]] && \
    [[   -s ${OUTPUT_PREFIX}ACTStage3Complete.txt ]] && \
    [[   -s ${OUTPUT_PREFIX}ACTStage2Complete.txt ]] && \
    [[   -s ${OUTPUT_PREFIX}ACTStage1Complete.txt ]] ; then
-if [[ ${ACT_STAGE} -eq 0 ]] || [[ ${ACT_STAGE} -eq 5  ]] ; then # BAStages thk
+if [[ ${ACT_STAGE} -eq 0 ]] || [[ ${ACT_STAGE} -eq 5 ]] ; then # BAStages thk
 if [[ ! -f ${CORTICAL_THICKNESS_IMAGE} ]];
   then
 
@@ -1225,7 +1269,7 @@ if [[ ! -f ${CORTICAL_THICKNESS_IMAGE} ]];
 
     TMP_FILES=( $CORTICAL_THICKNESS_GM $CORTICAL_THICKNESS_WM $CORTICAL_THICKNESS_SEGMENTATION )
 
-    exe_direct="${DIRECT} -d ${DIMENSION} -s [${CORTICAL_THICKNESS_SEGMENTATION},${GRAY_MATTER_LABEL},${WHITE_MATTER_LABEL}] --verbose 1"
+    exe_direct="${DIRECT} -d ${DIMENSION} -s [ ${CORTICAL_THICKNESS_SEGMENTATION},${GRAY_MATTER_LABEL},${WHITE_MATTER_LABEL} ] --verbose 1"
     exe_direct="${exe_direct} -g ${CORTICAL_THICKNESS_GM} -w ${CORTICAL_THICKNESS_WM} -o ${CORTICAL_THICKNESS_IMAGE}"
     exe_direct="${exe_direct} -c ${DIRECT_CONVERGENCE} -r ${DIRECT_GRAD_STEP_SIZE}"
     exe_direct="${exe_direct} -m ${DIRECT_SMOOTHING_PARAMETER} -n ${DIRECT_NUMBER_OF_DIFF_COMPOSITIONS} -b ${USE_BSPLINE_SMOOTHING}"
@@ -1289,7 +1333,7 @@ if [[ ! -s ${OUTPUT_PREFIX}ACTStage6Complete.txt ]] && \
    [[   -s ${OUTPUT_PREFIX}ACTStage3Complete.txt ]] && \
    [[   -s ${OUTPUT_PREFIX}ACTStage2Complete.txt ]] && \
    [[   -s ${OUTPUT_PREFIX}ACTStage1Complete.txt ]] ; then
-if [[ ${ACT_STAGE} -eq 0 ]] || [[ ${ACT_STAGE} -eq 6  ]] ; then # BAStages qc
+if [[ ${ACT_STAGE} -eq 0 ]] || [[ ${ACT_STAGE} -eq 6 ]] ; then # BAStages qc
 echo "--------------------------------------------------------------------------------------"
 echo "Compute summary measurements"
 echo "--------------------------------------------------------------------------------------"
@@ -1363,23 +1407,22 @@ if [[ ! -f ${CORTICAL_THICKNESS_MOSAIC} || ! -f ${BRAIN_SEGMENTATION_MOSAIC} ]];
 
     # Resample images
 
-    resample0="${ANTSPATH}/ResampleImageBySpacing ${DIMENSION} ${BRAIN_EXTRACTION_MASK}"
-    resample0="${resample0} ${BRAIN_EXTRACTION_MASK_RESAMPLED} 1 1"
-    resample1="${ANTSPATH}/ResampleImageBySpacing ${DIMENSION} ${HEAD_N4_IMAGE}"
-    resample1="${resample1} ${HEAD_N4_IMAGE_RESAMPLED} 1 1"
-    resample2="${ANTSPATH}/ResampleImageBySpacing ${DIMENSION} ${CORTICAL_THICKNESS_IMAGE}"
-    resample2="${resample2} ${CORTICAL_THICKNESS_IMAGE_RESAMPLED} 1 1"
-    resample3="${ANTSPATH}/ResampleImageBySpacing ${DIMENSION} ${BRAIN_SEGMENTATION}"
-    resample3="${resample3} ${BRAIN_SEGMENTATION_IMAGE_RESAMPLED} 1 1"
+    resample0="${ANTSPATH}/ResampleImage ${DIMENSION} ${BRAIN_EXTRACTION_MASK} ${BRAIN_EXTRACTION_MASK_RESAMPLED}"
+    resample1="${ANTSPATH}/ResampleImage ${DIMENSION} ${HEAD_N4_IMAGE} ${HEAD_N4_IMAGE_RESAMPLED}"
+    resample2="${ANTSPATH}/ResampleImage ${DIMENSION} ${CORTICAL_THICKNESS_IMAGE} ${CORTICAL_THICKNESS_IMAGE_RESAMPLED}"
+    resample3="${ANTSPATH}/ResampleImage ${DIMENSION} ${BRAIN_SEGMENTATION} ${BRAIN_SEGMENTATION_IMAGE_RESAMPLED}"
+
     if [[ ${DIMENSION} -eq 3 ]];
       then
-        resample0="${resample0} 1 0 0 1"
-        resample1="${resample1} 1"
-        resample2="${resample2} 1"
-        resample3="${resample3} 1 0 0 1"
+        resample0="${resample0} 1x1x1 0 1 6"
+        resample1="${resample1} 1x1x1 0 0 6"
+        resample2="${resample2} 1x1x1 0 0 6"
+        resample3="${resample3} 1x1x1 0 1 6"
       else
-        resample0="${resample0} 0 0 1"
-        resample3="${resample3} 0 0 1"
+        resample0="${resample0} 1x1 0 1 6"
+        resample1="${resample1} 1x1 0 0 6"
+        resample2="${resample2} 1x1 0 0 6"
+        resample3="${resample3} 1x1 0 1 6"
       fi
     logCmd $resample0
     logCmd $resample1
@@ -1397,7 +1440,7 @@ if [[ ! -f ${CORTICAL_THICKNESS_MOSAIC} || ! -f ${BRAIN_SEGMENTATION_MOSAIC} ]];
 
     mosaic="${ANTSPATH}/CreateTiledMosaic -i ${HEAD_N4_IMAGE_RESAMPLED} -r ${CORTICAL_THICKNESS_IMAGE_RGB}"
     mosaic="${mosaic} -o ${CORTICAL_THICKNESS_MOSAIC} -a 1.0 -t -1x-1 -d z -p mask"
-    mosaic="${mosaic} -s [2,mask,mask] -x ${CORTICAL_THICKNESS_MASK}"
+    mosaic="${mosaic} -s [ 2,mask,mask ] -x ${CORTICAL_THICKNESS_MASK}"
     logCmd $mosaic
 
     # Segmentation
@@ -1412,7 +1455,7 @@ if [[ ! -f ${CORTICAL_THICKNESS_MOSAIC} || ! -f ${BRAIN_SEGMENTATION_MOSAIC} ]];
 
     mosaic="${ANTSPATH}/CreateTiledMosaic -i ${HEAD_N4_IMAGE_RESAMPLED} -r ${BRAIN_SEGMENTATION_IMAGE_RGB}"
     mosaic="${mosaic} -o ${BRAIN_SEGMENTATION_MOSAIC} -a 0.3 -t -1x-1 -d 2 -p mask"
-    mosaic="${mosaic} -s [2,mask,mask] -x ${BRAIN_EXTRACTION_MASK_RESAMPLED}"
+    mosaic="${mosaic} -s [ 2,mask,mask ] -x ${BRAIN_EXTRACTION_MASK_RESAMPLED}"
     logCmd $mosaic
 
 
@@ -1438,7 +1481,7 @@ fi # check completion
 #
 ################################################################################
 
-if [[ ${ACT_STAGE} -eq 0 ]] || [[ ${ACT_STAGE} -ge 5  ]] ; then
+if [[ ${ACT_STAGE} -eq 0 ]] || [[ ${ACT_STAGE} -ge 5 ]] ; then
   logCmd checkOutputExists
 fi
 
