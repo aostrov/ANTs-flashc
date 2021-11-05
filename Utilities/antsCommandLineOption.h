@@ -11,8 +11,8 @@
      PURPOSE.  See the above copyright notices for more information.
 
 =========================================================================*/
-#ifndef __antsCommandLineOption_h
-#define __antsCommandLineOption_h
+#ifndef antsCommandLineOption_h
+#define antsCommandLineOption_h
 
 #include "itkDataObject.h"
 #include "itkObjectFactory.h"
@@ -43,7 +43,7 @@ namespace ants
       -m mutualinformation[parameter1] --optimization gradientdescent"
 */
 
-class OptionFunction
+class OptionFunction final
   : public       DataObject
 {
 public:
@@ -52,10 +52,8 @@ public:
     m_ArgOrder( 0 ),
     m_StageID( 0 )
   {
-  };
-  virtual ~OptionFunction() ITK_OVERRIDE
-  {
-  };
+  }
+  ~OptionFunction() {};
 
   typedef OptionFunction     Self;
   typedef DataObject         Superclass;
@@ -103,7 +101,7 @@ public:
 
   unsigned int GetNumberOfParameters()
   {
-    return this->m_Parameters.size();
+    return static_cast<unsigned int>( this->m_Parameters.size() );
   }
 
 private:
@@ -113,7 +111,7 @@ private:
   ParameterStackType m_Parameters;
 };
 
-class CommandLineOption
+class CommandLineOption final
   : public       DataObject
 {
 public:
@@ -137,7 +135,7 @@ public:
 
   unsigned int GetNumberOfFunctions()
   {
-    return this->m_OptionFunctions.size();
+    return static_cast<unsigned int>( this->m_OptionFunctions.size() );
   }
 
   OptionFunction::Pointer GetFunction( unsigned int i = 0 )
@@ -148,7 +146,7 @@ public:
       }
     else
       {
-      return ITK_NULLPTR;
+      return nullptr;
       }
   }
 
@@ -159,7 +157,7 @@ public:
 
   unsigned int GetNumberOfUsageOptions()
   {
-    return this->m_UsageOptions.size();
+    return static_cast<unsigned int>( this->m_UsageOptions.size() );
   }
 
   std::string GetUsageOption( unsigned int i = 0 )
@@ -194,9 +192,7 @@ public:
 
 protected:
   CommandLineOption();
-  virtual ~CommandLineOption() ITK_OVERRIDE
-  {
-  };
+  ~CommandLineOption() {};
 private:
   char                 m_ShortName;
   std::string          m_LongName;
