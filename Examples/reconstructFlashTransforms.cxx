@@ -445,9 +445,9 @@ int reconstructFlashTransforms( std::vector<std::string> args, std::ostream* /*o
   char *         velocity_field_filename = argv[1];
   char *         reference_image_filename = argv[2];
   std::string    output_prefix = argv[3];
-  const int      time_steps = atoi(argv[4]);
+  const int      time_steps = std::stoi(argv[4]);
   const float    laplace_weight = atof(argv[5]);
-  const int      operator_order = atoi(argv[6]);
+  const int      operator_order = std::stoi(argv[6]);
 
   std::cout << "velocity_field_filename: " << velocity_field_filename << std::endl;
   std::cout << "reference_image_filename: " << reference_image_filename << std::endl;
