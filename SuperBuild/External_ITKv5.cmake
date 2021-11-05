@@ -114,11 +114,12 @@ if(NOT DEFINED ${extProjName}_DIR AND NOT ${USE_SYSTEM_${extProjName}})
   set(${proj}_CMAKE_OPTIONS
       -DBUILD_TESTING:BOOL=OFF
       -DBUILD_EXAMPLES:BOOL=OFF
-      -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/${proj}-install
-      -DITK_LEGACY_REMOVE:BOOL=ON
+      -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/staging
+      -DITK_LEGACY_REMOVE:BOOL=OFF # <--- NEEDED TEMPORARILY until fixes for enum-class and ITK 5.1 release are required
       -DITK_FUTURE_LEGACY_REMOVE:BOOL=ON
       -DITKV3_COMPATIBILITY:BOOL=OFF
       -DITK_BUILD_DEFAULT_MODULES:BOOL=ON
+      -DITK_USE_SYSTEM_PNG=${ITK_USE_SYSTEM_PNG}
 #      -DITK_MODULE_Core:BOOL=ON
 #      -DITK_MODULE_IO:BOOL=ON
 #      -DITK_MODULE_Filtering:BOOL=ON
@@ -128,6 +129,8 @@ if(NOT DEFINED ${extProjName}_DIR AND NOT ${USE_SYSTEM_${extProjName}})
       -DITK_WRAPPING:BOOL=OFF #${BUILD_SHARED_LIBS} ## HACK:  QUICK CHANGE
       -DModule_MGHIO:BOOL=ON
       -DModule_ITKReview:BOOL=ON
+      -DModule_GenericLabelInterpolator:BOOL=ON
+      -DModule_AdaptiveDenoising:BOOL=ON
       ${${proj}_DCMTK_ARGS}
       ${${proj}_WRAP_ARGS}
       ${${proj}_FFTWF_ARGS}
@@ -138,7 +141,8 @@ if(NOT DEFINED ${extProjName}_DIR AND NOT ${USE_SYSTEM_${extProjName}})
     if( USE_VTK STREQUAL "ON" )
       list(APPEND ${proj}_CMAKE_OPTIONS -DModule_ITKVtkGlue:BOOL=ON)
       if( USE_SYSTEM_VTK STREQUAL "OFF" )
-        list(APPEND ${proj}_CMAKE_OPTIONS -DVTK_DIR:PATH=${CMAKE_CURRENT_BINARY_DIR}/VTK-install/lib/cmake/vtk-6.2 )
+        list(INSERT CMAKE_PREFIX_PATH 0 ${CMAKE_BINARY_DIR}/staging)
+        list(APPEND ${proj}_CMAKE_OPTIONS -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH})
       endif()
       list(APPEND ${proj}_DEPENDENCIES VTK)
     else()
@@ -148,8 +152,9 @@ if(NOT DEFINED ${extProjName}_DIR AND NOT ${USE_SYSTEM_${extProjName}})
 
   ### --- End Project specific additions
   set(${proj}_REPOSITORY ${git_protocol}://github.com/InsightSoftwareConsortium/ITK.git)
-  set(${proj}_GIT_TAG 902c9d0e0a2d8349796b1b2b805fd94648e8a197) ##
-  set(ITK_VERSION_ID ITK-5.0) ### NOTE: When updating GIT_TAG, also update ITK_VERSION_ID
+  # set(${proj}_REPOSITORY ${git_protocol}://github.com/stnava/ITK.git)
+  set(${proj}_GIT_TAG ac080c97b1179f370ab15c8c2e8172f4479ecebd)  # Official ITK release version 5.2.0 2021-04-02
+  set(ITK_VERSION_ID ITK-5.2) ### NOTE: When updating GIT_TAG, also update ITK_VERSION_ID
 
   ExternalProject_Add(${proj}
     GIT_REPOSITORY ${${proj}_REPOSITORY}
@@ -168,11 +173,12 @@ if(NOT DEFINED ${extProjName}_DIR AND NOT ${USE_SYSTEM_${extProjName}})
       ${CMAKE_OSX_EXTERNAL_PROJECT_ARGS}
       ${COMMON_EXTERNAL_PROJECT_ARGS}
       ${${proj}_CMAKE_OPTIONS}
+      -DCMAKE_GENERATOR_PLATFORM:STRING=${CMAKE_GENERATOR_PLATFORM}
 ## We really do want to install in order to limit # of include paths INSTALL_COMMAND ""
     DEPENDS
       ${${proj}_DEPENDENCIES}
   )
-  set(${extProjName}_DIR ${CMAKE_BINARY_DIR}/${proj}-install/lib/cmake/${ITK_VERSION_ID})
+  set(${extProjName}_DIR ${CMAKE_BINARY_DIR}/staging/lib/cmake/${ITK_VERSION_ID})
 else()
   if(${USE_SYSTEM_${extProjName}})
     find_package(${extProjName} ${ITK_VERSION_MAJOR} REQUIRED)
