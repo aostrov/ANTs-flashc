@@ -525,7 +525,7 @@ RegistrationHelper<TComputeType, VImageDimension>
 }
 
 // FLASH edit
-template <class TComputeType, unsigned VImageDimension>
+template <typename TComputeType, unsigned VImageDimension>
 void
 RegistrationHelper<TComputeType, VImageDimension>
 ::AddFLASHTransform(RealType GradientStep, RealType RegularizerTermWeight, RealType LaplacianWeight,
@@ -544,6 +544,8 @@ RegistrationHelper<TComputeType, VImageDimension>
   this->m_TransformMethods.push_back( init );
 }
 // END: FLASH edit
+
+template <typename TComputeType, unsigned VImageDimension>
 void
 RegistrationHelper<TComputeType, VImageDimension>
 ::SetIterations( const std::vector<std::vector<unsigned int> > & Iterations )
@@ -3467,7 +3469,7 @@ RegistrationHelper<TComputeType, VImageDimension>
           }
         if( this->m_WriteIntervalVolumes != 0 )
           {
-          displacementFieldRegistrationObserver2->SetWriteInterationsOutputsInIntervals( this->m_WriteIntervalVolumes );
+          displacementFieldRegistrationObserver2->SetWriteIterationsOutputsInIntervals( this->m_WriteIntervalVolumes );
           displacementFieldRegistrationObserver2->SetCurrentStageNumber( currentStageNumber );
           }
         displacementFieldRegistration->AddObserver( itk::InitializeEvent(), displacementFieldRegistrationObserver2 );
