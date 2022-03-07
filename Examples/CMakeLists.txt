@@ -32,9 +32,9 @@ set(FLASH_FILES
     )
 add_library(FLASH_LIB STATIC ${FLASH_FILES})
 # BEGIN: FLASH EDIT AARON
-set(FFTWF_LIB "/home/aostrov/src/fftw-3.3.10/libfftw3f.so.3") # force setting of FFTWF_LIB
-set(FFTWF_THREADS_LIB "/home/aostrov/src/fftw-3.3.10/libfftw3f_threads.so.3")
-set(FFTW_INCLUDE_PATH "/home/aostrov/src/fftw-3.3.10/api")
+# set(FFTWF_LIB "/home/aostrov/src/fftw-3.3.10/libfftw3f.so.3") # force setting of FFTWF_LIB
+# set(FFTWF_THREADS_LIB "/home/aostrov/src/fftw-3.3.10/libfftw3f_threads.so.3")
+# set(FFTW_INCLUDE_PATH "/home/aostrov/src/fftw-3.3.10/api")
 # END: FLASH EDIT AARON
 target_link_libraries(FLASH_LIB ${ITK_LIBRARIES} ${PyCA_LIB} ${FFTWF_LIB} ${FFTWF_THREADS_LIB})
 # END: FLASH EDIT
@@ -204,7 +204,7 @@ set(MORE_ANTS_APPS
     AverageAffineTransform
     AverageAffineTransformNoRigid
     AverageImages
-    simpleSynRegistration
+    # simpleSynRegistration
     CompositeTransformUtil
     CreateDisplacementField
     ConvertTransformFile
