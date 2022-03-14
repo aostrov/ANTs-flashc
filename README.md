@@ -1,3 +1,90 @@
+# Building ANTs-Flashc on windows
+
+## WSL
+ - Install Ubuntu 20.04 via windows app store
+ - upgrade to wsl2 wsl ("--set-version Ubuntu-20.04 2")
+
+
+## Install Homebrew for Linux
+ - /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+ - follow instructions to put in path and install dev tools
+
+## Get code
+ - generate ssh keypair and upload public key to github
+ - activate the keypair (eval "$(ssh-agent -s)")
+ - clone repo ("git clone git@github.com:aostrov/ANTs-flashc.git")
+
+## CMake
+ - brew install cmake
+
+## PyCA
+
+### Swig 3
+ - brew install swig@3
+ - "echo 'export PATH="/home/linuxbrew/.linuxbrew/opt/swig@3/bin:$PATH"' >> /home/aostrov/.profile"
+
+### fftw
+ - brew install fftw
+
+### doxygen
+ - brew install doxygen
+
+### miniconda
+ - mkdir downloads; cd downloads
+ - wget https://repo.anaconda.com/miniconda/Miniconda3-py39_4.11.0-Linux-x86_64.sh
+ - "sh Miniconda3-py39_4.11.0-Linux-x86_64.sh" and follow instructions
+ - (conda config --set auto_activate_base false) to not activate conda's base environment on startup
+ - "conda create -n pyca python=2.7"
+ - "conda activate pyca"
+ - "conda install scipy"
+ - "conda install -c anaconda numpy-devel"
+
+### boost
+ - https://www.boost.org/users/download/#live
+ - wget https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.gz
+ - ./bootstrap.sh --prefix=/home/aostrov/opt/boost
+ - ./b2
+ - ./b2 headers
+ - ./b2 install
+
+### ITK
+ - git clone https://github.com/InsightSoftwareConsortium/ITK.git
+ - cd ITK; mkdir build; cd build
+ - "ccmake .."
+  - "c"
+  - 'build_shared_libs' == ON
+  - "g"
+ - make -j 10
+ - sudo make install
+
+### PyCA
+ - "git clone https://bitbucket.org/scicompanat/pyca.git"
+ - mkdir build; cd build
+ - ccmake ..
+  - "c"
+  - add "/home/linuxbrew/.linuxbrew/lib" and "/home/linuxbrew/.linuxbrew/include" to $PATH
+  - boost include dir == "/home/aostrov/opt/boost/include"
+  - "WRAP_PYTHON" == OFF
+  - install prefix == "/home/aostrov/opt/pyca/"
+ - change: /home/aostrov/src/pyca/Code/Cxx/src/alg/MultiscaleManager.cxx line 61
+  - from: "std::cout << "level is " << mCurLevel << ", grid is " << std::cout << mCurGrid << std::endl;"
+  - to: std::cout << "level is " << mCurLevel << ", grid is " << mCurGrid << std::endl;
+ - make -j 12
+ - make install
+
+## ANTs-Flashc
+ - cd ~/src/ANTs-flashc
+ - mkdir build; cd build
+ - pyca build dir: /home/aostrov/src/pyca/build
+ - pyca source dir: /home/aostrov/src/Code/Cxx/inc
+ - cmake install dir: /home/aostrov/opt/antsf
+
+## Other
+ - "echo 'export LD_LIBRARY_PATH="/usr/local/lib/:/home/linuxbrew/.linuxbrew/lib/:/home/aostrov/opt/:$LD_LIBRARY_PATH"' >> /home/aostrov/.profile"
+
+
+
+
 <!--
 ![ants registration artillery](http://i.imgur.com/FCLrXV1.jpg)
 ![ants multivar](http://i.imgur.com/YqWtunL.png)
